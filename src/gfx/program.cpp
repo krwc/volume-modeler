@@ -40,8 +40,8 @@ void Program::define(const string &name, const string &value) {
     m_defines[name] = value;
 }
 
-void Program::set_shader_source(Shader type, const string &source) {
-    m_shaders.push_back(ShaderDesc{ source, type, glCreateShader((GLenum) type) });
+void Program::set_shader_source(GLenum type, const string &source) {
+    m_shaders.push_back(ShaderDesc{ source, type, glCreateShader(type) });
 }
 
 void Program::compile_shader(ShaderDesc &desc) {

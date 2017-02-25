@@ -10,12 +10,6 @@
 
 namespace vm {
 
-enum class Shader {
-    Vertex = GL_VERTEX_SHADER,
-    Fragment = GL_FRAGMENT_SHADER,
-    Compute = GL_COMPUTE_SHADER
-};
-
 class Program {
     struct ParamDesc {
         GLenum type;
@@ -24,7 +18,7 @@ class Program {
 
     struct ShaderDesc {
         std::string source;
-        Shader type;
+        GLenum type;
         GLuint id;
     };
 
@@ -52,7 +46,7 @@ public:
     void define(const std::string &name, const std::string &value = "");
 
     /** Sets the source code of the shader from string */
-    void set_shader_source(Shader type, const std::string &source);
+    void set_shader_source(GLenum type, const std::string &source);
 
     /** Sets shader uniform value, or throws */
     template <typename T>

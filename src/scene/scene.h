@@ -28,7 +28,7 @@ public:
     /**
      * Draws the scene.
      */
-    void draw();
+    void render();
 
     /**
      * Sets the current camera.

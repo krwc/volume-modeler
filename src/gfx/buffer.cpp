@@ -24,8 +24,7 @@ Buffer::Buffer(Buffer &&other)
 Buffer::Buffer(const BufferDesc &desc) {
     m_desc = boost::make_optional(desc);
     glCreateBuffers(1, &m_id);
-    glNamedBufferData(m_id, desc.initial_size, desc.initial_data,
-                      (GLenum) desc.hint);
+    glNamedBufferData(m_id, desc.initial_size, desc.initial_data, desc.hint);
 }
 
 Buffer::~Buffer() {
@@ -37,7 +36,7 @@ void Buffer::fill(const void *data, size_t size) {
         throw invalid_argument("unexpected size 0");
     }
     if (size > m_desc.get().initial_size) {
-        glNamedBufferData(m_id, size, data, (GLenum) m_desc.get().hint);
+        glNamedBufferData(m_id, size, data, m_desc.get().hint);
         m_desc.get().initial_size = size;
     } else {
         update(data, size, 0u);

@@ -19,7 +19,7 @@ void Scene::sub(const Brush &brush) {
     return;
 }
 
-void Scene::draw() {
+void Scene::render() {
     return;
 }
 

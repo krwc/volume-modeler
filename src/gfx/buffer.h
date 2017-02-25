@@ -8,19 +8,9 @@
 
 namespace vm {
 
-enum class BufferType {
-    Vertex = GL_ARRAY_BUFFER,
-    Index = GL_ELEMENT_ARRAY_BUFFER,
-};
-
-enum class BufferHint {
-    Static = GL_STATIC_DRAW,
-    Dynamic = GL_DYNAMIC_DRAW
-};
-
 struct BufferDesc {
-    BufferType type;
-    BufferHint hint;
+    GLenum type;
+    GLenum hint;
     const void *initial_data;
     size_t initial_size;
 };
@@ -77,7 +67,7 @@ public:
     /**
      * @returns underlying buffer type
      */
-    inline BufferType type() const {
+    inline GLenum type() const {
         return m_desc.get().type;
     }
 

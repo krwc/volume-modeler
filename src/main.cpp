@@ -35,7 +35,7 @@ static void handle_events() {
 }
 
 static void render_scene() {
-    g_scene.draw();
+    g_scene.render();
 }
 
 int main() {
