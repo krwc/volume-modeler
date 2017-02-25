@@ -1,0 +1,4 @@
+/** Size of each chunk of the scene. */
+#cmakedefine VM_CHUNK_SIZE @VM_CHUNK_SIZE@
+/** Size of a single voxel in a chunk. */
+#cmakedefine VM_VOXEL_SIZE @VM_VOXEL_SIZE@

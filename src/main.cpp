@@ -19,11 +19,15 @@ static void init() {
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
     g_window = glfwCreateWindow(g_initial_window_width, g_initial_window_height,
-                                "volume-renderer", nullptr, nullptr);
+                                "volume-modeler", nullptr, nullptr);
     if (!g_window) {
         throw runtime_error("cannot create window");
     }
     glfwMakeContextCurrent(g_window);
+}
+
+static void deinit() {
+    glfwDestroyWindow(g_window);
 }
 
 static void handle_events() {
@@ -31,17 +35,17 @@ static void handle_events() {
 }
 
 static void render_scene() {
-    return;
+    g_scene.draw();
 }
 
 int main() {
     init();
-
     while (!glfwWindowShouldClose(g_window)) {
         handle_events();
         render_scene();
         glfwSwapBuffers(g_window);
         glfwPollEvents();
     }
+    deinit();
     return 0;
 }

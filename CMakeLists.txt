@@ -11,6 +11,12 @@ pkg_search_module(GL REQUIRED gl)
 pkg_search_module(GLFW3 REQUIRED glfw3)
 pkg_search_module(GLM REQUIRED glm)
 
+set(VM_CHUNK_SIZE 256 CACHE STRING "Size of the scene chunk (256 recommended)")
+set(VM_VOXEL_SIZE 0.009 CACHE STRING "Size of the single voxel in chunk (0.009 recommended)")
+configure_file(${CMAKE_CURRENT_SOURCE_DIR}/config/config.h.in
+               ${CMAKE_CURRENT_BINARY_DIR}/config/config.h)
+include_directories(${CMAKE_CURRENT_BINARY_DIR}/config)
+
 include_directories(src)
 add_subdirectory(src)
 
