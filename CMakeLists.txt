@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 2.8)
-project(volume-renderer)
+project(volume-modeler)
 
 set(CMAKE_CXX_STANDARD 14)
 set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -Wall -Wextra -Wpedantic -O3 -DNDEBUG")
@@ -9,6 +9,10 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS TRUE)
 include(FindPkgConfig)
 pkg_search_module(GL REQUIRED gl)
 pkg_search_module(GLFW3 REQUIRED glfw3)
+pkg_search_module(GLM REQUIRED glm)
+
+include_directories(src)
+add_subdirectory(src)
 
 file(GLOB_RECURSE CPP_SOURCES src/*.cpp)
 
