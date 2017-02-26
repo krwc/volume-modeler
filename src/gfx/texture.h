@@ -14,6 +14,7 @@ struct Texture {
     virtual int get_depth() const = 0;
     virtual GLenum get_type() const = 0;
     virtual GLuint id() const = 0;
+    virtual void clear(float r, float g, float b, float a) const = 0;
 };
 
 struct TextureDesc2d {
@@ -32,15 +33,6 @@ public:
 
     Texture2d(const TextureDesc2d &desc);
     ~Texture2d();
-
-    void write(int level,
-               int x,
-               int y,
-               int w,
-               int h,
-               const void *data,
-               GLenum data_format,
-               GLenum data_type);
 
     virtual int get_width() const {
         return m_desc.width;
@@ -80,17 +72,6 @@ public:
 
     Texture3d(const TextureDesc3d &desc);
     ~Texture3d();
-
-    void write(int level,
-               int x,
-               int y,
-               int z,
-               int w,
-               int h,
-               int d,
-               const void *data,
-               GLenum data_format,
-               GLenum data_type);
 
     virtual int get_width() const {
         return m_desc.width;

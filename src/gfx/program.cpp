@@ -1,6 +1,10 @@
 #include "program.h"
 
 #include <cassert>
+#include <iterator>
+#include <fstream>
+#include <sstream>
+#include <iostream>
 
 namespace vm {
 using namespace std;
@@ -40,8 +44,18 @@ void Program::define(const string &name, const string &value) {
     m_defines[name] = value;
 }
 
-void Program::set_shader_source(GLenum type, const string &source) {
-    m_shaders.push_back(ShaderDesc{ source, type, glCreateShader(type) });
+namespace {
+string read_file(const string &path) {
+    ifstream f(path);
+    if (!f.is_open()) {
+        throw invalid_argument("Cannot open: " + path);
+    }
+    return string(istreambuf_iterator<char>(f), istreambuf_iterator<char>());
+}
+}
+
+void Program::set_shader_from_file(GLenum type, const string &file) {
+    m_shaders.push_back(ShaderDesc{ read_file(file), file, type, glCreateShader(type) });
 }
 
 void Program::compile_shader(ShaderDesc &desc) {
@@ -50,7 +64,8 @@ void Program::compile_shader(ShaderDesc &desc) {
         preprocessed_source += "#define " + it.first + " " + it.second + "\n";
     }
     /* We don't want to expose our little hack with appending defines */
-    preprocessed_source += "#line 1\n";
+    preprocessed_source += "#line 0\n";
+    preprocessed_source += desc.source;
 
     GLint length = static_cast<GLint>(preprocessed_source.length());
     const char *source = preprocessed_source.c_str();
@@ -65,7 +80,12 @@ void Program::compile_shader(ShaderDesc &desc) {
         compilation_log.resize(log_length - 1, '\0');
         glGetShaderInfoLog(desc.id, log_length - 1, &log_length,
                            &compilation_log[0]);
-        throw runtime_error(compilation_log);
+        stringstream error;
+        error << "Failed to compile: "
+              << desc.filename
+              << '\n'
+              << compilation_log;
+        throw runtime_error(error.str());
     }
 }
 
@@ -91,7 +111,7 @@ void Program::link() {
     if (length > 0) {
         string log(length - 1, 0);
         glGetProgramInfoLog(m_id, length - 1, &length, &log[0]);
-        fprintf(stderr, "Program link log:\n%s\n", log.c_str());
+        cerr << "Program link log:\n" << log << endl;
     }
     if (status == GL_FALSE) {
         throw runtime_error("Cannot link program");

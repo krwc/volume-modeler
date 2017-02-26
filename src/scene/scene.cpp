@@ -1,25 +1,16 @@
 #include "config.h"
-
 #include "scene.h"
-#include "brush.h"
 
 namespace vm {
+using namespace std;
 
-Scene::Scene()
-    : m_camera()
-    , m_sampler()
-    , m_raymarcher()
-{ }
+Scene::Scene() : m_camera() {}
 
 void Scene::add(const Brush &brush) {
     return;
 }
 
 void Scene::sub(const Brush &brush) {
-    return;
-}
-
-void Scene::render() {
     return;
 }
 

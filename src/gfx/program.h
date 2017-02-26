@@ -18,6 +18,7 @@ class Program {
 
     struct ShaderDesc {
         std::string source;
+        std::string filename;
         GLenum type;
         GLuint id;
     };
@@ -45,8 +46,8 @@ public:
     /** Defines constant value to be used during the preprocessing step. */
     void define(const std::string &name, const std::string &value = "");
 
-    /** Sets the source code of the shader from string */
-    void set_shader_source(GLenum type, const std::string &source);
+    /** Sets the source code of the shader from file */
+    void set_shader_from_file(GLenum type, const std::string &path);
 
     /** Sets shader uniform value, or throws */
     template <typename T>

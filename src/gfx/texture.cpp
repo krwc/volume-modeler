@@ -17,35 +17,11 @@ void Texture::generate_mipmaps() {
     glGenerateTextureMipmap(id());
 }
 
-namespace {
-size_t get_type_size(GLenum type) {
-    switch (type) {
-    case GL_BYTE:
-    case GL_UNSIGNED_BYTE:
-        return sizeof(char);
-    case GL_FLOAT:
-        return sizeof(float);
-    default:
-        assert(0 && "unsupported type");
-        return -1;
-    }
-}
-
-size_t get_format_size(GLenum format) {
-    switch (format) {
-    case GL_RED:
-        return 1;
-    case GL_RG:
-        return 2;
-    case GL_RGB:
-        return 3;
-    case GL_RGBA:
-        return 4;
-    default:
-        assert(0 && "unsupported format");
-        return -1;
-    }
-}
+void Texture::clear(float r, float g, float b, float a) const {
+    const float rgba[] = {
+        r, g, b, a
+    };
+    glClearTexImage(id(), 0, GL_RGBA, GL_FLOAT, rgba);
 }
 
 Texture2d::Texture2d(const TextureDesc2d &desc)
@@ -67,20 +43,6 @@ Texture2d::~Texture2d() {
     glDeleteTextures(1, &m_id);
 }
 
-void Texture2d::write(int level,
-                      int x,
-                      int y,
-                      int w,
-                      int h,
-                      const void *data,
-                      GLenum data_format,
-                      GLenum data_type) {
-    fprintf(stderr, "Writing %u bytes to texture %u\n",
-            w * h * get_type_size(data_type) * get_format_size(data_format),
-            m_id);
-    glTextureSubImage2D(m_id, level, x, y, w, h, data_format, data_type, data);
-}
-
 Texture3d::Texture3d(const TextureDesc3d &desc)
     : m_id(GL_NONE)
     , m_desc(desc) {
@@ -99,23 +61,6 @@ Texture3d::Texture3d(const TextureDesc3d &desc)
 
 Texture3d::~Texture3d() {
     glDeleteTextures(1, &m_id);
-}
-
-void Texture3d::write(int level,
-                      int x,
-                      int y,
-                      int z,
-                      int w,
-                      int h,
-                      int d,
-                      const void *data,
-                      GLenum data_format,
-                      GLenum data_type) {
-    fprintf(stderr, "Writing %u bytes to texture %u\n",
-            w * h * d * get_type_size(data_type) * get_format_size(data_format),
-            m_id);
-    glTextureSubImage3D(m_id, level, x, y, z, w, h, d, data_format, data_type,
-                        data);
 }
 
 }

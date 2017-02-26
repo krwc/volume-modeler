@@ -2,16 +2,13 @@
 #define VM_SCENE_SCENE_H
 #include <memory>
 
-#include "gfx/program.h"
+#include "scene/camera.h"
+#include "scene/brush.h"
 
 namespace vm {
-class Brush;
-class Camera;
 
 class Scene {
     std::shared_ptr<Camera> m_camera;
-    Program m_sampler;
-    Program m_raymarcher;
 
 public:
     Scene();
@@ -24,11 +21,6 @@ public:
      * Samples @p brush over the scene subtracting its volume from it.
      */
     void sub(const Brush &brush);
-
-    /**
-     * Draws the scene.
-     */
-    void render();
 
     /**
      * Sets the current camera.
