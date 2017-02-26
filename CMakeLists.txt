@@ -20,7 +20,8 @@ include_directories(${CMAKE_CURRENT_BINARY_DIR}/config)
 include_directories(src)
 add_subdirectory(src)
 
-file(GLOB_RECURSE CPP_SOURCES src/*.cpp)
+file(GLOB_RECURSE CPP_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp)
+file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/shaders DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
 
 add_executable(${PROJECT_NAME} ${CPP_SOURCES})
 target_link_libraries(${PROJECT_NAME} ${GL_LIBRARIES} ${GLFW3_LIBRARIES})

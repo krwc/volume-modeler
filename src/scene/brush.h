@@ -13,36 +13,27 @@ namespace vm {
  */
 class Brush {
 public:
-    enum Type {
-        Cube = 0,
-        Ball = 1
-    };
-
-    Brush(Brush::Type type)
-        : m_position()
-        , m_rotation()
+    Brush()
+        : m_origin()
+        , m_rotation(1.0f)
         , m_scale(1, 1, 1)
-        , m_type(type)
     {}
+
+    virtual ~Brush() {}
 
     /**
      * @returns the bounding box of the brush. Must be implemented by the
      * deriving classes.
      */
-    virtual const AABB &get_aabb() const = 0;
-
-    /** @returns the type of this brush */
-    inline Brush::Type get_type() const {
-        return m_type;
-    }
+    virtual AABB get_aabb() const = 0;
 
     /** @returns the origin of the brush */
-    inline const glm::vec3 &get_position() const {
-        return m_position;
+    inline const glm::vec3 &get_origin() const {
+        return m_origin;
     }
 
     /** @returns the vector of rotations in each dimension (xyz) in radians */
-    inline const glm::vec3 &get_rotation() const {
+    inline const glm::mat3 &get_rotation() const {
         return m_rotation;
     }
 
@@ -52,13 +43,16 @@ public:
     }
 
     /** @brief sets the origin of the brush */
-    inline void set_position(const glm::vec3 &origin) {
-        m_position = origin;
+    inline void set_origin(const glm::vec3 &origin) {
+        m_origin = origin;
     }
 
     /** @brief sets the rotation (in radians) in each dimension (xyz) */
     inline void set_rotation(const glm::vec3 &rotation) {
-        m_rotation = rotation;
+        const glm::quat rotx = glm::rotate(glm::quat(), rotation.x, { 1.0f, 0.0f, 0.0f });
+        const glm::quat roty = glm::rotate(glm::quat(), rotation.y, { 0.0f, 1.0f, 0.0f });
+        const glm::quat rotz = glm::rotate(glm::quat(), rotation.z, { 0.0f, 0.0f, 1.0f });
+        m_rotation = mat3_cast(rotx * roty * rotz);
     }
 
     /** @brief sets the scale in each dimension (xyz). By default the scale is 1 */
@@ -67,10 +61,9 @@ public:
     }
 
 private:
-    glm::vec3 m_position;
-    glm::vec3 m_rotation;
+    glm::vec3 m_origin;
+    glm::mat3 m_rotation;
     glm::vec3 m_scale;
-    Brush::Type m_type;
 };
 
 } // namespace vm

@@ -5,7 +5,8 @@
 #include "gfx/renderer.h"
 
 #include "scene/scene.h"
-#include "scene/brush.h"
+#include "scene/brush-cube.h"
+#include "scene/brush-ball.h"
 
 using namespace std;
 
