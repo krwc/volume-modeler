@@ -13,6 +13,7 @@ using namespace std;
 static int g_window_width = 1400;
 static int g_window_height = 900;
 static GLFWwindow *g_window;
+static shared_ptr<vm::Camera> g_camera;
 static unique_ptr<vm::Scene> g_scene;
 static unique_ptr<vm::Renderer> g_renderer;
 
@@ -29,7 +30,15 @@ static void init() {
         throw runtime_error("cannot create window");
     }
     glfwMakeContextCurrent(g_window);
+    g_camera = make_shared<vm::Camera>();
+    g_camera->set_origin({0,0,5});
     g_scene = make_unique<vm::Scene>();
+    g_scene->set_camera(g_camera);
+    vm::BrushCube cube{};
+    cube.set_scale({0.4, 0.4, 0.4});
+    cube.set_rotation({45, 45, 45});
+    g_scene->add(cube);
+
     g_renderer = make_unique<vm::Renderer>();
     g_renderer->resize(g_window_width, g_window_height);
 }

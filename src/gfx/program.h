@@ -23,6 +23,8 @@ class Program {
         GLuint id;
     };
 
+    void destroy();
+
     void discover_constants();
     void set_constant(const ParamDesc &desc, const void *value);
     void compile_shader(ShaderDesc &desc);

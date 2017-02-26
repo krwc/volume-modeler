@@ -6,11 +6,11 @@
 namespace vm {
 
 void Texture::set_parameter(GLenum parameter, int value) {
-    glTextureParameteri(get_type(), parameter, value);
+    glTextureParameteri(id(), parameter, value);
 }
 
 void Texture::set_parameter(GLenum parameter, float value) {
-    glTextureParameterf(get_type(), parameter, value);
+    glTextureParameterf(id(), parameter, value);
 }
 
 void Texture::generate_mipmaps() {
@@ -55,8 +55,8 @@ Texture3d::Texture3d(const TextureDesc3d &desc)
     glTexImage3D(GL_TEXTURE_3D, 0, desc.internal_format, desc.width,
                  desc.height, desc.depth, 0, GL_RGBA, GL_FLOAT, nullptr);
     glBindTexture(GL_TEXTURE_3D, current_texture);
-    fprintf(stderr, "Created %dx%dx%d texture\n", m_desc.width, m_desc.height,
-            m_desc.depth);
+    fprintf(stderr, "Created %dx%dx%d texture %u\n", m_desc.width, m_desc.height,
+            m_desc.depth, m_id);
 }
 
 Texture3d::~Texture3d() {

@@ -9,13 +9,25 @@
 namespace vm {
 using namespace std;
 
+void Program::destroy() {
+    if (m_id) {
+        glDeleteProgram(m_id);
+    }
+
+    for (ShaderDesc &desc : m_shaders) {
+        glDeleteShader(desc.id);
+    }
+    m_shaders.clear();
+}
+
 Program &Program::operator=(Program &&other) {
     if (&other != this) {
-        this->~Program();
+        destroy();
         m_id = other.m_id;
         m_constants = move(other.m_constants);
+        m_defines = move(other.m_defines);
         m_shaders = move(other.m_shaders);
-        other.m_id = 0;
+        other.m_id = GL_NONE;
     }
     return *this;
 }
@@ -34,10 +46,7 @@ Program::Program()
 }
 
 Program::~Program() {
-    glDeleteProgram(m_id);
-    for (ShaderDesc &desc : m_shaders) {
-        glDeleteShader(desc.id);
-    }
+    destroy();
 }
 
 void Program::define(const string &name, const string &value) {

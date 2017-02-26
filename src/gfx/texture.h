@@ -14,7 +14,7 @@ struct Texture {
     virtual int get_depth() const = 0;
     virtual GLenum get_type() const = 0;
     virtual GLuint id() const = 0;
-    virtual void clear(float r, float g, float b, float a) const = 0;
+    virtual void clear(float r, float g, float b, float a) const;
 };
 
 struct TextureDesc2d {
@@ -62,7 +62,7 @@ struct TextureDesc3d {
     GLenum internal_format;
 };
 
-class Texture3d {
+class Texture3d : public Texture {
     GLuint m_id;
     TextureDesc3d m_desc;
 

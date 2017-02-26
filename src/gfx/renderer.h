@@ -12,7 +12,6 @@ class Scene;
 class Renderer {
     Program m_sampler;
     Program m_raymarcher;
-    Program m_compositor;
     std::unique_ptr<Buffer> m_triangle_vbo;
     GLuint m_vao;
     int m_width;
