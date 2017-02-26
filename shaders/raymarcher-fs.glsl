@@ -64,7 +64,7 @@ vec4 volume_sdf(in vec3 p) {
         return vec4(0, 0, 0, d);
     }
 
-    const float uv_offset = 3.8 * 0.5 / (VM_CHUNK_SIZE);
+    const float uv_offset = 3.8 * 0.5 / (VM_CHUNK_SIZE + VM_CHUNK_BORDER);
     const float sp0 = volume_sample(p + vec3(uv_offset, 0, 0));
     const float sp1 = volume_sample(p + vec3(0, uv_offset, 0));
     const float sp2 = volume_sample(p + vec3(0, 0, uv_offset));
