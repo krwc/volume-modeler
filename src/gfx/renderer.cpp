@@ -31,6 +31,7 @@ void Renderer::init_shaders() {
     m_raymarcher = Program{};
     m_raymarcher.define("VM_VOXEL_SIZE", to_string(VM_VOXEL_SIZE));
     m_raymarcher.define("VM_CHUNK_SIZE", to_string(VM_CHUNK_SIZE));
+    m_raymarcher.define("VM_CHUNK_BORDER", to_string(VM_CHUNK_BORDER));
     m_raymarcher.define("SCREEN_WIDTH", to_string(m_width));
     m_raymarcher.define("SCREEN_HEIGHT", to_string(m_height));
     m_raymarcher.set_shader_from_file(GL_VERTEX_SHADER,

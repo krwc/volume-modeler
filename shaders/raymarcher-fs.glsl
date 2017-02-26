@@ -53,7 +53,7 @@ bool is_ray_hitting_volume(in vec3 o, in vec3 inv_r, out float out_tmin) {
 }
 
 float volume_sample(in vec3 p) {
-    const vec3 q = (p - chunk_origin) / (VM_CHUNK_SIZE * VM_VOXEL_SIZE) + 0.5;
+    const vec3 q = (p - chunk_origin) / ((VM_CHUNK_SIZE + VM_CHUNK_BORDER) * VM_VOXEL_SIZE) + 0.5;
     return texture(volume, q).r;
 }
 
@@ -64,7 +64,7 @@ vec4 volume_sdf(in vec3 p) {
         return vec4(0, 0, 0, d);
     }
 
-    const float uv_offset = 0.5 / (VM_CHUNK_SIZE);
+    const float uv_offset = 3.8 * 0.5 / (VM_CHUNK_SIZE);
     const float sp0 = volume_sample(p + vec3(uv_offset, 0, 0));
     const float sp1 = volume_sample(p + vec3(0, uv_offset, 0));
     const float sp2 = volume_sample(p + vec3(0, 0, uv_offset));
@@ -77,7 +77,7 @@ vec4 volume_sdf(in vec3 p) {
     return vec4(normal, (sp0 + sp1 + sp2 + sm0 + sm1 + sm2) / 6);
 }
 
-#define MAX_STEPS 256
+#define MAX_STEPS 128
 vec4 raymarch(in ivec2 xy, in vec3 o, in vec3 r, in float z) {
     if (volume_sdf(o + r * z).w <= tolerance) {
         return vec4(0.3, 0.3, 0.3, z);
@@ -103,7 +103,7 @@ void main() {
     const vec3 inv_r = 1.0 / r;
     float t = 0;
 
-//    if (is_ray_hitting_volume(camera_origin, inv_r, t)) {
+    if (is_ray_hitting_volume(camera_origin, inv_r, t)) {
         /* Far beyond camera far plane */
         if (t >= camera_far_plane) {
             discard;
@@ -116,5 +116,8 @@ void main() {
 
         FragColor = vec4(result.xyz, 1.0);
         gl_FragDepth = result.w / camera_far_plane;
-  //  }
+    } else {
+        FragColor = vec4(0.3, 0.3, 0.3, 1);
+        gl_FragDepth = camera_far_plane;
+    }
 }

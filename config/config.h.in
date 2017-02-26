@@ -2,3 +2,5 @@
 #cmakedefine VM_CHUNK_SIZE @VM_CHUNK_SIZE@
 /** Size of a single voxel in a chunk. */
 #cmakedefine VM_VOXEL_SIZE @VM_VOXEL_SIZE@
+/** Additional texture border improving the quality of transitions between chunks */
+#cmakedefine VM_CHUNK_BORDER @VM_CHUNK_BORDER@

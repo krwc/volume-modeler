@@ -55,6 +55,10 @@ public:
         return m_proj;
     }
 
+    inline glm::mat3 get_rotation() const {
+        return glm::mat3_cast(m_rotx * m_roty);
+    }
+
     inline float get_fov() const {
         return m_fov;
     }

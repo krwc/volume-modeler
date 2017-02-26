@@ -60,6 +60,9 @@ public:
         m_scale = scale;
     }
 
+    /** Obtains an unique identifier of the brush (to pass for the shader) */
+    virtual int id() const = 0;
+
 private:
     glm::vec3 m_origin;
     glm::mat3 m_rotation;

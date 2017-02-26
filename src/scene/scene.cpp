@@ -17,6 +17,7 @@ Scene::Scene()
     , m_sampler() {
     m_sampler.define("VM_VOXEL_SIZE", to_string(VM_VOXEL_SIZE));
     m_sampler.define("VM_CHUNK_SIZE", to_string(VM_CHUNK_SIZE));
+    m_sampler.define("VM_CHUNK_BORDER", to_string(VM_CHUNK_BORDER));
     m_sampler.set_shader_from_file(GL_COMPUTE_SHADER, "shaders/sampler.glsl");
     m_sampler.compile();
     m_sampler.link();
@@ -76,10 +77,17 @@ void Scene::sample(const Brush &brush, Operation op) {
     ivec3 region_min, region_max;
     get_affected_region(region_min, region_max, brush.get_aabb());
 
+    auto bb = brush.get_aabb();
+    fprintf(stderr, "AABBmin (%.3f, %.3f, %.3f), AABBmax (%.3f, %.3f, %.3f)\n",
+            bb.min.x, bb.min.y, bb.min.z, bb.max.x, bb.max.y, bb.max.z);
+    fprintf(stderr, "Affected region (%d,%d,%d)x(%d,%d,%d)\n",
+            region_min.x, region_min.y, region_min.z,
+            region_max.x, region_max.y, region_max.z);
+
     glUseProgram(m_sampler.id());
-    m_sampler.set_constant("brush", int(0));
+    m_sampler.set_constant("brush", brush.id());
     m_sampler.set_constant("brush_origin", brush.get_origin());
-    m_sampler.set_constant("brush_scale", brush.get_scale());
+    m_sampler.set_constant("brush_scale", 0.5f * brush.get_scale());
     m_sampler.set_constant("brush_rotation", brush.get_rotation());
     m_sampler.set_constant("operation", (int) op);
 
@@ -92,21 +100,26 @@ void Scene::sample(const Brush &brush, Operation op) {
         if (!node.volume) {
             node.coord = ivec3(x, y, z);
             node.origin = get_chunk_origin(x, y, z);
-            node.volume = make_unique<Texture3d>(TextureDesc3d{
-                    VM_CHUNK_SIZE, VM_CHUNK_SIZE, VM_CHUNK_SIZE, GL_R16F });
+            node.volume = make_unique<Texture3d>(
+                    TextureDesc3d{ VM_CHUNK_SIZE + VM_CHUNK_BORDER,
+                                   VM_CHUNK_SIZE + VM_CHUNK_BORDER,
+                                   VM_CHUNK_SIZE + VM_CHUNK_BORDER, GL_R16F });
             node.volume->set_parameter(GL_TEXTURE_MIN_FILTER, GL_LINEAR);
             node.volume->set_parameter(GL_TEXTURE_MAG_FILTER, GL_LINEAR);
             node.volume->set_parameter(GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
             node.volume->set_parameter(GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
             node.volume->set_parameter(GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
             node.volume->clear(1e5, 1e5, 1e5, 1e5);
-            node.volume->generate_mipmaps();
         }
         m_sampler.set_constant("chunk_origin", get_chunk_origin(x, y, z));
+        glMemoryBarrier(GL_TEXTURE_UPDATE_BARRIER_BIT);
         glBindImageTexture(0, node.volume->id(), 0, GL_TRUE, 0, GL_READ_WRITE,
                            GL_R16F);
         /* TODO: we usually don't have to run it over the entire area */
-        glDispatchCompute(VM_CHUNK_SIZE, VM_CHUNK_SIZE, VM_CHUNK_SIZE);
+        glDispatchCompute(VM_CHUNK_SIZE + VM_CHUNK_BORDER,
+                          VM_CHUNK_SIZE + VM_CHUNK_BORDER,
+                          VM_CHUNK_SIZE + VM_CHUNK_BORDER);
+        glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
     }}}
 }
 

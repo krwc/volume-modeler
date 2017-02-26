@@ -13,6 +13,10 @@ public:
         const AABB aabb = AABB(min, max).transform(get_rotation());
         return AABB(aabb.min + get_origin(), aabb.max + get_origin());
     }
+
+    virtual int id() const {
+        return 0;
+    }
 };
 
 } // namespace vm

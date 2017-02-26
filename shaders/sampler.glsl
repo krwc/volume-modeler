@@ -25,7 +25,7 @@ float cube_sdf(in vec3 p) {
 }
 
 vec3 get_position(in ivec3 xyz) {
-    const vec3 half_dim = 0.5 * vec3(VM_CHUNK_SIZE, VM_CHUNK_SIZE, VM_CHUNK_SIZE);
+    const vec3 half_dim = 0.5 * vec3(VM_CHUNK_SIZE + VM_CHUNK_BORDER);
     return VM_VOXEL_SIZE * (xyz - half_dim) + chunk_origin;
 }
 

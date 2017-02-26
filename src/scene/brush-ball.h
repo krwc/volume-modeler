@@ -10,6 +10,10 @@ public:
         return AABB(get_origin() - 0.5f * get_scale(),
                     get_origin() + 0.5f * get_scale());
     }
+
+    virtual int id() const {
+        return 1;
+    }
 };
 
 } // namespace vm

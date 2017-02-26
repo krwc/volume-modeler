@@ -1,4 +1,3 @@
-set(CMAKE_CXX_COMPILER clang++)
 cmake_minimum_required(VERSION 2.8)
 project(volume-modeler)
 
@@ -13,6 +12,7 @@ pkg_search_module(GLFW3 REQUIRED glfw3)
 pkg_search_module(GLM REQUIRED glm)
 
 set(VM_CHUNK_SIZE 256 CACHE STRING "Size of the scene chunk (256 recommended)")
+set(VM_CHUNK_BORDER 4 CACHE STRING "Chunk border improving chunk transitions quality (4 recommended)")
 set(VM_VOXEL_SIZE 0.009 CACHE STRING "Size of the single voxel in chunk (0.009 recommended)")
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/config/config.h.in
                ${CMAKE_CURRENT_BINARY_DIR}/config/config.h)
