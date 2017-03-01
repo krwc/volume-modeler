@@ -1,6 +1,7 @@
 #include <GLFW/glfw3.h>
 #include <stdexcept>
 #include <memory>
+#include <chrono>
 
 #include "gfx/renderer.h"
 
@@ -11,12 +12,24 @@
 using namespace std;
 using namespace glm;
 
+static double g_dt = 1.0;
+static double g_acceleration = 1.0;
 static int g_window_width = 1400;
 static int g_window_height = 900;
 static GLFWwindow *g_window;
 static shared_ptr<vm::Camera> g_camera;
 static unique_ptr<vm::Scene> g_scene;
 static unique_ptr<vm::Renderer> g_renderer;
+
+static chrono::time_point<chrono::steady_clock> g_frametime_beg;
+static chrono::time_point<chrono::steady_clock> g_frametime_end;
+
+static unique_ptr<vm::Brush> g_brushes[] = {
+    make_unique<vm::BrushCube>(),
+    make_unique<vm::BrushBall>()
+};
+
+static int g_selected_brush;
 
 static void init() {
     if (!glfwInit()) {
@@ -31,6 +44,7 @@ static void init() {
         throw runtime_error("cannot create window");
     }
     glfwMakeContextCurrent(g_window);
+    glfwSwapInterval(0);
     g_camera = make_shared<vm::Camera>();
     g_camera->set_origin({0,0,5});
     g_camera->set_aspect_ratio(float(g_window_width) / g_window_height);
@@ -74,7 +88,7 @@ static void handle_keyboard() {
     static const vec3 AXIS_X(1,0,0);
     static const vec3 AXIS_Z(0,0,-1);
 
-    float accel = 0.025f;
+    float accel = 0.025f * g_acceleration;
 
     if (glfwGetKey(g_window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS) {
         accel *= 10;
@@ -129,14 +143,34 @@ static void render_scene() {
     g_renderer->render(*g_scene.get());
 }
 
+static void report_frametime() {
+    static unsigned frame_counter = 0;
+    static double frametime_sum = 0;
+    ++frame_counter;
+    frametime_sum += g_dt;
+
+    if (frame_counter == 600) {
+        fprintf(stderr, "frametime=%.3fms; avg=%.3fms\n", g_dt,
+                frametime_sum / frame_counter);
+        frametime_sum = 0;
+        frame_counter = 0;
+    }
+}
+
 int main() {
     init();
     while (!glfwWindowShouldClose(g_window)) {
+        using namespace chrono;
+        g_dt = duration_cast<microseconds>(g_frametime_end - g_frametime_beg).count() / 1000.0;
+        g_acceleration = g_dt / 16.0;
+        report_frametime();
+        g_frametime_beg = steady_clock::now();
+        glfwPollEvents();
         handle_resize();
         handle_events();
         render_scene();
         glfwSwapBuffers(g_window);
-        glfwPollEvents();
+        g_frametime_end = steady_clock::now();
     }
     deinit();
     return 0;

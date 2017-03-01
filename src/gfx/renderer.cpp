@@ -17,8 +17,12 @@ const vec2 quad[] = {
 }
 
 void Renderer::init_buffer() {
-    m_triangle_vbo = make_unique<Buffer>(
-            BufferDesc{ GL_ARRAY_BUFFER, GL_STATIC_DRAW, quad, sizeof(quad) });
+    m_triangle_vbo = make_unique<Buffer>(BufferDesc{
+        GL_ARRAY_BUFFER,
+        GL_STATIC_DRAW,
+        quad,
+        sizeof(quad)
+    });
 
     glCreateVertexArrays(1, &m_vao);
     assert(m_vao > 0);
