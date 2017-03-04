@@ -12,6 +12,12 @@
 using namespace std;
 using namespace glm;
 
+static bool g_mouse_grabbed;
+static bool g_brush_should_rotate;
+
+static double g_rotx;
+static double g_roty;
+
 static double g_dt = 1.0;
 static double g_acceleration = 1.0;
 static int g_window_width = 1400;
@@ -28,8 +34,7 @@ static unique_ptr<vm::Brush> g_brushes[] = {
     make_unique<vm::BrushCube>(),
     make_unique<vm::BrushBall>()
 };
-
-static int g_selected_brush;
+static int g_brush_id;
 
 static void init() {
     if (!glfwInit()) {
@@ -84,6 +89,10 @@ static void handle_resize() {
     }
 }
 
+vm::Brush *get_current_brush() {
+    return g_brushes[g_brush_id].get();
+}
+
 static void handle_keyboard() {
     static const vec3 AXIS_X(1,0,0);
     static const vec3 AXIS_Z(0,0,-1);
@@ -108,6 +117,15 @@ static void handle_keyboard() {
     if (glfwGetKey(g_window, GLFW_KEY_D) == GLFW_PRESS) {
         translation += AXIS_X;
     }
+    if (glfwGetKey(g_window, GLFW_KEY_ESCAPE) == GLFW_PRESS) {
+        g_mouse_grabbed = false;
+        glfwSetInputMode(g_window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
+    }
+    if (glfwGetKey(g_window, GLFW_KEY_LEFT_ALT) == GLFW_PRESS) {
+        g_brush_should_rotate = true;
+    } else {
+        g_brush_should_rotate = false;
+    }
 
     g_camera->set_origin(g_camera->get_origin() + accel * inv_rotation * translation);
 }
@@ -115,8 +133,7 @@ static void handle_keyboard() {
 static void handle_mouse() {
     static double last_x;
     static double last_y;
-    static double rot_x;
-    static double rot_y;
+    static bool brush_lock;
     double mx, my;
 
     glfwGetCursorPos(g_window, &mx, &my);
@@ -125,22 +142,67 @@ static void handle_mouse() {
     last_x = mx;
     last_y = my;
 
-    if (glfwGetMouseButton(g_window, GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS) {
-        rot_x -= radians(0.1 * dy);
-        rot_y -= radians(0.1 * dx);
+    int left_button = glfwGetMouseButton(g_window, GLFW_MOUSE_BUTTON_LEFT);
+    int right_button = glfwGetMouseButton(g_window, GLFW_MOUSE_BUTTON_RIGHT);
+    if (left_button == GLFW_PRESS) {
+        if (!g_mouse_grabbed) {
+            brush_lock = true;
+        }
+        glfwSetInputMode(g_window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+        g_mouse_grabbed = true;
+    } else if (left_button == GLFW_RELEASE) {
+        brush_lock = false;
     }
 
-    g_camera->set_rotation_x(rot_x);
-    g_camera->set_rotation_y(rot_y);
+    if (g_mouse_grabbed) {
+        g_rotx -= radians(0.1 * dy);
+        g_roty -= radians(0.1 * dx);
+    }
+
+    if (g_mouse_grabbed && !brush_lock && left_button == GLFW_PRESS) {
+        g_scene->add(*get_current_brush());
+    }
+    if (g_mouse_grabbed && !brush_lock && right_button == GLFW_PRESS) {
+        g_scene->sub(*get_current_brush());
+    }
+
+    g_camera->set_rotation_x(g_rotx);
+    g_camera->set_rotation_y(g_roty);
 }
 
 static void handle_events() {
     handle_keyboard();
     handle_mouse();
+
+    vm::Brush *brush = get_current_brush();
+    const mat3 dir = inverse(mat3(g_camera->get_view()));
+    const vec3 origin = g_camera->get_origin() - dir * vec3(0, 0, 3.0f);
+    brush->set_origin(origin);
 }
 
 static void render_scene() {
+    static const vec4 brush_color = vec4(0.3f, 0.1f, 0.8f, 0.5f);
+
     g_renderer->render(*g_scene.get());
+
+    vm::Brush *brush = get_current_brush();
+    brush->set_rotation({0, 0, 0});
+
+    vm::AABB brush_aabb = brush->get_aabb();
+
+    if (g_brush_should_rotate) {
+        brush->set_rotation({g_rotx, g_roty, 0});
+    }
+    const mat3 brush_transform = g_brush_should_rotate
+                                         ? inverse(mat3(g_camera->get_view()))
+                                         : mat3(1.0f);
+    const vm::Box brush_box = {
+        brush_aabb.min,
+        brush_aabb.max,
+        brush_color,
+        brush_transform
+    };
+    g_renderer->render(g_camera, brush_box);
 }
 
 static void report_frametime() {

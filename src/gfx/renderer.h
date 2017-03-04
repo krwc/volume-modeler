@@ -6,14 +6,26 @@
 #include "gfx/program.h"
 #include "gfx/texture.h"
 
+#include <glm/glm.hpp>
+
 namespace vm {
 class Scene;
+class Camera;
+
+struct Box {
+    glm::vec3 min;
+    glm::vec3 max;
+    glm::vec4 color;
+    glm::mat3 transform;
+};
 
 class Renderer {
-    Program m_sampler;
     Program m_raymarcher;
+    Program m_box_drawer;
     std::unique_ptr<Buffer> m_triangle_vbo;
-    GLuint m_vao;
+    std::unique_ptr<Buffer> m_shape_vbo;
+    GLuint m_raymarcher_vao;
+    GLuint m_shape_vao;
     int m_width;
     int m_height;
 
@@ -23,6 +35,7 @@ class Renderer {
 public:
     Renderer();
     void render(const Scene &scene);
+    void render(const std::shared_ptr<Camera> &camera, const Box &box);
     void resize(int screen_width, int screen_height);
 };
 
