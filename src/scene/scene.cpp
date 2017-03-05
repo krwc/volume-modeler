@@ -119,7 +119,6 @@ void Scene::sample(const Brush &brush, Operation op) {
         glMemoryBarrier(GL_TEXTURE_UPDATE_BARRIER_BIT);
         glBindImageTexture(0, node.volume->id(), 0, GL_TRUE, 0, GL_READ_WRITE,
                            GL_R16F);
-        /* TODO: we usually don't have to run it over the entire area */
         glDispatchCompute(VM_CHUNK_SIZE + VM_CHUNK_BORDER,
                           VM_CHUNK_SIZE + VM_CHUNK_BORDER,
                           VM_CHUNK_SIZE + VM_CHUNK_BORDER);

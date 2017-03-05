@@ -48,6 +48,7 @@ void Renderer::init_shaders() {
     m_raymarcher.define("VM_VOXEL_SIZE", to_string(VM_VOXEL_SIZE));
     m_raymarcher.define("VM_CHUNK_SIZE", to_string(VM_CHUNK_SIZE));
     m_raymarcher.define("VM_CHUNK_BORDER", to_string(VM_CHUNK_BORDER));
+    m_raymarcher.define("VM_CHUNKS_PER_PASS", to_string(VM_CHUNKS_PER_PASS));
     m_raymarcher.define("SCREEN_WIDTH", to_string(m_width));
     m_raymarcher.define("SCREEN_HEIGHT", to_string(m_height));
     m_raymarcher.set_shader_from_file(GL_VERTEX_SHADER,
@@ -66,6 +67,11 @@ void Renderer::init_shaders() {
                                       "shaders/box-fs.glsl");
     m_box_drawer.compile();
     m_box_drawer.link();
+
+    for (size_t i = 0; i < VM_CHUNKS_PER_PASS; ++i) {
+        m_origin_refs[i] =
+            m_raymarcher.get_constant_ref("chunk_origin[" + to_string(i) + "]");
+    }
 }
 
 Renderer::Renderer()
@@ -102,13 +108,16 @@ void Renderer::render(const Scene &scene) {
     m_raymarcher.set_constant("camera_origin", camera->get_origin());
     m_raymarcher.set_constant("camera_far_plane", camera->get_far_plane());
 
-    for (const Scene::Chunk *chunk : scene.get_chunks_to_render()) {
-        m_raymarcher.set_constant("chunk_origin", chunk->origin);
-        glActiveTexture(GL_TEXTURE0);
-        glBindTexture(GL_TEXTURE_3D, chunk->volume->id());
+    auto &&chunks = scene.get_chunks_to_render();
+
+    for (size_t i = 0; i < chunks.size(); i += VM_CHUNKS_PER_PASS) {
+        for (size_t j = i; j-i < VM_CHUNKS_PER_PASS && j < chunks.size(); j++) {
+            m_raymarcher.set_constant(m_origin_refs[j-i], chunks[j]->origin);
+            glActiveTexture(GL_TEXTURE0 + j-i);
+            glBindTexture(GL_TEXTURE_3D, chunks[j]->volume->id());
+        }
         glDrawArrays(GL_TRIANGLES, 0, 6);
     }
-
 #if 0
     for (const Scene::Chunk *chunk : scene.get_chunks_to_render()) {
         const vec3 c = chunk->origin;

@@ -163,7 +163,34 @@ void Program::discover_constants() {
             (GLenum) results[PROPERTY_TYPE],
             (GLint) results[PROPERTY_LOCATION]
         };
+
+        auto opening_brace = uniform_name.find('[');
+        if (opening_brace == string::npos) {
+            continue;
+        }
+        /* Thank you OpenGL for treating arrays differently. Now my life is
+           much, much easier */
+        const string array_name = uniform_name.substr(0, opening_brace);
+        for (int index = 1; ; ++index) {
+            string element = array_name + "[" + to_string(index) + "]";
+            GLint location = glGetUniformLocation(m_id, element.c_str());
+            if (location < 0) {
+                break;
+            }
+
+            m_constants[element] = Program::ParamDesc {
+                (GLenum) results[PROPERTY_TYPE],
+                location
+            };
+        }
     }
+}
+
+uint64_t Program::get_constant_ref(const string &name) {
+    if (const Program::ParamDesc *desc = find_constant(name)) {
+        return reinterpret_cast<uint64_t>(desc);
+    }
+    return numeric_limits<uint64_t>::max();
 }
 
 void Program::set_constant(const ParamDesc &desc, const void *data) {
@@ -196,6 +223,9 @@ void Program::set_constant(const ParamDesc &desc, const void *data) {
     case GL_FLOAT_MAT4:
         glProgramUniformMatrix4fv(m_id, location, 1, GL_FALSE,
                                   (const GLfloat *) data);
+        break;
+    case GL_INT_VEC3:
+        glProgramUniform3iv(m_id, location, 1, (const GLint *) data);
         break;
     default:
         assert(0 && "constant type not supported");
