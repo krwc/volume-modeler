@@ -25,7 +25,7 @@ float texture_box_sdf(in vec3 p, in vec3 origin, in float size) {
 }
 
 bool is_ray_hitting_volume(in int chunk_id, in vec3 o, in vec3 inv_r, out float out_tmin) {
-    const float half_box = 0.5 * (VM_VOXEL_SIZE * (VM_CHUNK_SIZE + 1));
+    const float half_box = 0.5 * (VM_VOXEL_SIZE * VM_CHUNK_SIZE);
     const vec3 aabb_min = chunk_origin[chunk_id] - half_box * vec3(1,1,1);
     const vec3 aabb_max = chunk_origin[chunk_id] + half_box * vec3(1,1,1);
 

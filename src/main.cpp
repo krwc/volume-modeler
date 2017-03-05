@@ -36,6 +36,9 @@ static unique_ptr<vm::Brush> g_brushes[] = {
     make_unique<vm::BrushBall>()
 };
 static int g_brush_id;
+static vec3 g_brush_scale(1,1,1);
+
+static void handle_scroll(GLFWwindow *window, double xoffset, double yoffset);
 
 static void init() {
     if (!glfwInit()) {
@@ -57,21 +60,10 @@ static void init() {
 
     g_scene = make_unique<vm::Scene>();
     g_scene->set_camera(g_camera);
-    vm::BrushCube cube{};
-    cube.set_scale({1, 1, 1});
-    cube.set_rotation(radians(vec3(45, 0, 0)));
-    g_scene->add(cube);
-    cube.set_rotation(radians(vec3(0, 45, 0)));
-    g_scene->add(cube);
-    cube.set_rotation(radians(vec3(0, 0, 45)));
-    g_scene->add(cube);
-
-    vm::BrushBall ball{};
-    ball.set_origin({0.5, 0.5, 0.5});
-    g_scene->sub(ball);
 
     g_renderer = make_unique<vm::Renderer>();
     g_renderer->resize(g_window_width, g_window_height);
+    glfwSetScrollCallback(g_window, handle_scroll);
 }
 
 static void deinit() {
@@ -132,8 +124,28 @@ static void handle_keyboard() {
         persistence << *g_scene.get();
         cerr << "Outputed scene to scene.dat" << endl;
     }
+    if (glfwGetKey(g_window, GLFW_KEY_1) == GLFW_PRESS) {
+        g_brush_id = 0;
+    }
+    if (glfwGetKey(g_window, GLFW_KEY_2) == GLFW_PRESS) {
+        g_brush_id = 1;
+    }
 
     g_camera->set_origin(g_camera->get_origin() + accel * inv_rotation * translation);
+}
+
+static void handle_scroll(GLFWwindow *window, double xoffset, double yoffset) {
+    (void) window;
+    if (glfwGetKey(g_window, GLFW_KEY_X)) {
+        g_brush_scale.x += 2*VM_VOXEL_SIZE * yoffset;
+    }
+    if (glfwGetKey(g_window, GLFW_KEY_Y)) {
+        g_brush_scale.y += 2*VM_VOXEL_SIZE * yoffset;
+    }
+    if (glfwGetKey(g_window, GLFW_KEY_Z)) {
+        g_brush_scale.z += 2*VM_VOXEL_SIZE * yoffset;
+    }
+    g_brush_scale = max(vec3(1,1,1), g_brush_scale);
 }
 
 static void handle_mouse() {
@@ -193,6 +205,7 @@ static void render_scene() {
 
     vm::Brush *brush = get_current_brush();
     brush->set_rotation({0, 0, 0});
+    brush->set_scale(g_brush_scale);
 
     vm::AABB brush_aabb = brush->get_aabb();
 
