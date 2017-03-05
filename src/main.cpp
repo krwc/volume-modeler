@@ -136,6 +136,7 @@ static void handle_keyboard() {
 
 static void handle_scroll(GLFWwindow *window, double xoffset, double yoffset) {
     (void) window;
+    (void) xoffset;
     if (glfwGetKey(g_window, GLFW_KEY_X)) {
         g_brush_scale.x += 2*VM_VOXEL_SIZE * yoffset;
     }
