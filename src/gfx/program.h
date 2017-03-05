@@ -7,6 +7,7 @@
 #include <string>
 #include <vector>
 #include <stdexcept>
+#include <limits>
 
 namespace vm {
 
@@ -60,6 +61,18 @@ public:
             throw std::invalid_argument("invalid constant: " + name);
         }
     }
+
+    template <typename T>
+    void set_constant(uint64_t constant_ref, const T &value) {
+        if (constant_ref == std::numeric_limits<uint64_t>::max()) {
+            throw std::invalid_argument("invalid constant reference");
+        }
+        set_constant(*reinterpret_cast<const ParamDesc *>(constant_ref),
+                     (const void *) &value);
+    }
+
+    /** Returns either a constant reference or UINT64_MAX */
+    uint64_t get_constant_ref(const std::string &name);
 
     /** Performs preprocessing step, compiles all shaders and gets ready to link
      * the program */

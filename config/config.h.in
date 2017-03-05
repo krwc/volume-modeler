@@ -4,3 +4,5 @@
 #cmakedefine VM_VOXEL_SIZE @VM_VOXEL_SIZE@
 /** Additional texture border improving the quality of transitions between chunks */
 #cmakedefine VM_CHUNK_BORDER @VM_CHUNK_BORDER@
+/** Maximum number of chunks to render in a single pass */
+#cmakedefine VM_CHUNKS_PER_PASS @VM_CHUNKS_PER_PASS@

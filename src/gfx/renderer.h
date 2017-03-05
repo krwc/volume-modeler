@@ -1,6 +1,7 @@
 #ifndef VM_GFX_RENDERER_H
 #define VM_GFX_RENDERER_H
 #include <memory>
+#include "config.h"
 
 #include "gfx/buffer.h"
 #include "gfx/program.h"
@@ -24,6 +25,9 @@ class Renderer {
     Program m_box_drawer;
     std::unique_ptr<Buffer> m_triangle_vbo;
     std::unique_ptr<Buffer> m_shape_vbo;
+
+    uint64_t m_origin_refs[VM_CHUNKS_PER_PASS];
+
     GLuint m_raymarcher_vao;
     GLuint m_shape_vao;
     int m_width;

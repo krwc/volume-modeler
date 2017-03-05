@@ -1,5 +1,5 @@
 layout(location=0) out vec4 FragColor;
-layout(binding=0) uniform sampler3D volume;
+layout(binding=0) uniform sampler3D volume[VM_CHUNKS_PER_PASS];
 
 uniform mat4 inv_proj;
 uniform mat4 inv_view;
@@ -7,7 +7,7 @@ uniform vec3 camera_origin;
 uniform float camera_far_plane;
 
 uniform float tolerance = 0.001;
-uniform vec3 chunk_origin;
+uniform vec3 chunk_origin[VM_CHUNKS_PER_PASS];
 
 in vec2 uv;
 
@@ -24,10 +24,10 @@ float texture_box_sdf(in vec3 p, in vec3 origin, in float size) {
     return max(v.x, max(v.y, v.z));
 }
 
-bool is_ray_hitting_volume(in vec3 o, in vec3 inv_r, out float out_tmin) {
+bool is_ray_hitting_volume(in int chunk_id, in vec3 o, in vec3 inv_r, out float out_tmin) {
     const float half_box = 0.5 * (VM_VOXEL_SIZE * (VM_CHUNK_SIZE + 1));
-    const vec3 aabb_min = chunk_origin - half_box * vec3(1,1,1);
-    const vec3 aabb_max = chunk_origin + half_box * vec3(1,1,1);
+    const vec3 aabb_min = chunk_origin[chunk_id] - half_box * vec3(1,1,1);
+    const vec3 aabb_max = chunk_origin[chunk_id] + half_box * vec3(1,1,1);
 
     // https://tavianator.com/fast-branchless-raybounding-box-intersections/
     float tmin = -1e9;
@@ -52,40 +52,40 @@ bool is_ray_hitting_volume(in vec3 o, in vec3 inv_r, out float out_tmin) {
     return false;
 }
 
-float volume_sample(in vec3 p) {
-    const vec3 q = (p - chunk_origin) / ((VM_CHUNK_SIZE + VM_CHUNK_BORDER) * VM_VOXEL_SIZE) + 0.5;
-    return texture(volume, q).r;
+float volume_sample(in int chunk_id, in vec3 p) {
+    const vec3 q = (p - chunk_origin[chunk_id]) / ((VM_CHUNK_SIZE + VM_CHUNK_BORDER) * VM_VOXEL_SIZE) + 0.5;
+    return texture(volume[chunk_id], q).r;
 }
 
-vec4 volume_sdf(in vec3 p) {
-    float d = texture_box_sdf(p, chunk_origin, 0.5 * VM_CHUNK_SIZE * VM_VOXEL_SIZE);
+vec4 volume_sdf(in int chunk_id, in vec3 p) {
+    float d = texture_box_sdf(p, chunk_origin[chunk_id], 0.5 * VM_CHUNK_SIZE * VM_VOXEL_SIZE);
 
     if (d >= tolerance) {
         return vec4(0, 0, 0, d);
     }
 
     const float uv_offset = 3.8 * 0.5 / (VM_CHUNK_SIZE + VM_CHUNK_BORDER);
-    const float sp0 = volume_sample(p + vec3(uv_offset, 0, 0));
-    const float sp1 = volume_sample(p + vec3(0, uv_offset, 0));
-    const float sp2 = volume_sample(p + vec3(0, 0, uv_offset));
+    const float sp0 = volume_sample(chunk_id, p + vec3(uv_offset, 0, 0));
+    const float sp1 = volume_sample(chunk_id, p + vec3(0, uv_offset, 0));
+    const float sp2 = volume_sample(chunk_id, p + vec3(0, 0, uv_offset));
 
-    const float sm0 = volume_sample(p - vec3(uv_offset, 0, 0));
-    const float sm1 = volume_sample(p - vec3(0, uv_offset, 0));
-    const float sm2 = volume_sample(p - vec3(0, 0, uv_offset));
+    const float sm0 = volume_sample(chunk_id, p - vec3(uv_offset, 0, 0));
+    const float sm1 = volume_sample(chunk_id, p - vec3(0, uv_offset, 0));
+    const float sm2 = volume_sample(chunk_id, p - vec3(0, 0, uv_offset));
 
     const vec3 normal = normalize(vec3(sp0 - sm0, sp1 - sm1, sp2 - sm2));
     return vec4(normal, (sp0 + sp1 + sp2 + sm0 + sm1 + sm2) / 6);
 }
 
 #define MAX_STEPS 128
-vec4 raymarch(in ivec2 xy, in vec3 o, in vec3 r, in float z) {
-    if (volume_sdf(o + r * z).w <= tolerance) {
+vec4 raymarch(in int chunk_id, in ivec2 xy, in vec3 o, in vec3 r, in float z) {
+    if (volume_sdf(chunk_id, o + r * z).w <= tolerance) {
         return vec4(0.3, 0.3, 0.3, z);
     }
 
     for (int i = 0; i < MAX_STEPS; ++i) {
         vec3 p = o + z * r;
-        vec4 s = volume_sdf(p);
+        vec4 s = volume_sdf(chunk_id, p);
 
         if (s.w <= tolerance) {
             vec3 normal = s.xyz;
@@ -103,21 +103,24 @@ void main() {
     const vec3 inv_r = 1.0 / r;
     float t = 0;
 
-    if (is_ray_hitting_volume(camera_origin, inv_r, t)) {
-        /* Far beyond camera far plane */
-        if (t >= camera_far_plane) {
-            discard;
-        }
+    vec4 result = vec4(0.3, 0.3, 0.3, camera_far_plane);
+    #pragma unroll
+    for (int i = 0; i < VM_CHUNKS_PER_PASS; ++i) {
+        if (is_ray_hitting_volume(i, camera_origin, inv_r, t)) {
+            /* Far beyond camera far plane */
+            if (t >= camera_far_plane) {
+                continue;
+            }
 
-        vec4 result = raymarch(xy, camera_origin, r, max(0.25, t));
-        if (result.w >= camera_far_plane) {
-            discard;
-        }
+            vec4 current = raymarch(i, xy, camera_origin, r, max(0.25, t));
 
-        FragColor = vec4(result.xyz, 1.0);
-        gl_FragDepth = result.w / camera_far_plane;
-    } else {
-        FragColor = vec4(0.3, 0.3, 0.3, 1);
-        gl_FragDepth = camera_far_plane;
+            if (current.w < result.w) {
+                result = current;
+                break;
+            }
+        }
     }
+
+    FragColor = vec4(result.xyz, 1);
+    gl_FragDepth = result.w / camera_far_plane;
 }
