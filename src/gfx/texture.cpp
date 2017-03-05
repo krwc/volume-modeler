@@ -63,4 +63,16 @@ Texture3d::~Texture3d() {
     glDeleteTextures(1, &m_id);
 }
 
+void Texture3d::read(void *buffer,
+                     size_t size,
+                     GLenum format,
+                     GLenum type) const {
+    glGetTextureImage(m_id, 0, format, type, size, buffer);
+}
+
+void Texture3d::fill(const void *buffer, GLenum format, GLenum type) {
+    glTextureSubImage3D(m_id, 0, 0, 0, 0, get_width(), get_height(),
+                        get_depth(), format, type, buffer);
+}
+
 }

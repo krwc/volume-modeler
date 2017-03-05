@@ -1,6 +1,6 @@
 #ifndef VM_SCENE_CAMERA_H
 #define VM_SCENE_CAMERA_H
-
+#include <iostream>
 #include <glm/glm.hpp>
 #include <glm/gtc/quaternion.hpp>
 
@@ -10,8 +10,8 @@ class Camera {
     glm::mat4 m_view;
     glm::mat4 m_proj;
     glm::vec3 m_origin;
-    glm::quat m_rotx;
-    glm::quat m_roty;
+    float m_rotx;
+    float m_roty;
     float m_fov;
     float m_aspect_ratio;
     float m_near_plane;
@@ -19,6 +19,10 @@ class Camera {
 
     void recalculate_proj();
     void recalculate_view();
+
+    glm::quat get_quat_rotation_x() const;
+    glm::quat get_quat_rotation_y() const;
+
 public:
     Camera(const glm::vec3 &origin = { 0, 0, 0 },
            float fov = 70.0f,
@@ -56,7 +60,15 @@ public:
     }
 
     inline glm::mat3 get_rotation() const {
-        return glm::mat3_cast(m_rotx * m_roty);
+        return glm::mat3_cast(get_quat_rotation_x() * get_quat_rotation_y());
+    }
+
+    inline float get_rotation_x() const {
+        return m_rotx;
+    }
+
+    inline float get_rotation_y() const {
+        return m_roty;
     }
 
     inline float get_fov() const {
@@ -78,6 +90,9 @@ public:
     inline const glm::vec3 &get_origin() const {
         return m_origin;
     }
+
+    friend std::istream &operator>>(std::istream &in, Camera &camera);
+    friend std::ostream &operator<<(std::ostream &out, const Camera &camera);
 };
 
 } // namespace vm

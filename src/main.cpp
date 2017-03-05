@@ -2,6 +2,7 @@
 #include <stdexcept>
 #include <memory>
 #include <chrono>
+#include <fstream>
 
 #include "gfx/renderer.h"
 
@@ -126,6 +127,11 @@ static void handle_keyboard() {
     } else {
         g_brush_should_rotate = false;
     }
+    if (glfwGetKey(g_window, GLFW_KEY_F1) == GLFW_PRESS) {
+        ofstream persistence("scene.dat", ios_base::binary | ios_base::trunc);
+        persistence << *g_scene.get();
+        cerr << "Outputed scene to scene.dat" << endl;
+    }
 
     g_camera->set_origin(g_camera->get_origin() + accel * inv_rotation * translation);
 }
@@ -157,6 +163,8 @@ static void handle_mouse() {
     if (g_mouse_grabbed) {
         g_rotx -= radians(0.1 * dy);
         g_roty -= radians(0.1 * dx);
+        g_camera->set_rotation_x(g_rotx);
+        g_camera->set_rotation_y(g_roty);
     }
 
     if (g_mouse_grabbed && !brush_lock && left_button == GLFW_PRESS) {
@@ -166,8 +174,6 @@ static void handle_mouse() {
         g_scene->sub(*get_current_brush());
     }
 
-    g_camera->set_rotation_x(g_rotx);
-    g_camera->set_rotation_y(g_roty);
 }
 
 static void handle_events() {
@@ -219,8 +225,20 @@ static void report_frametime() {
     }
 }
 
-int main() {
+int main(int argc, char **argv) {
+    if (argc > 2) {
+        cerr << "Usage: " << argv[0] << " [scene-to-restore.dat]" << endl;
+        return 1;
+    }
     init();
+
+    if (argc == 2) {
+        ifstream persistence("scene.dat", ios::binary);
+        persistence >> *g_scene.get();
+        g_rotx = g_camera->get_rotation_x();
+        g_roty = g_camera->get_rotation_y();
+    }
+
     while (!glfwWindowShouldClose(g_window)) {
         using namespace chrono;
         g_dt = duration_cast<microseconds>(g_frametime_end - g_frametime_beg).count() / 1000.0;

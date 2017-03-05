@@ -1,9 +1,13 @@
 #include "config.h"
 #include "scene.h"
 
+#include "utils/persistence.h"
+
 #include <glm/gtx/norm.hpp>
 
 #include <algorithm>
+
+#include <cstring>
 
 namespace vm {
 using namespace std;
@@ -129,6 +133,91 @@ void Scene::add(const Brush &brush) {
 
 void Scene::sub(const Brush &brush) {
     sample(brush, Operation::Sub);
+}
+
+ostream &operator<<(ostream &out, const Scene::Chunk &chunk) {
+    const size_t N = VM_CHUNK_SIZE + VM_CHUNK_BORDER;
+    vector<int16_t> buffer(N*N*N);
+
+    chunk.volume->read(buffer.data(), sizeof(uint16_t) * buffer.size(), GL_RED,
+                       GL_SHORT);
+
+    for (size_t i = 0; i < buffer.size(); ++i) {
+        out <= buffer[i];
+    }
+
+    out <= chunk.coord;
+    out <= chunk.origin;
+
+    return out;
+}
+
+istream &operator>>(istream &in, Scene::Chunk &chunk) {
+    const size_t N = VM_CHUNK_SIZE + VM_CHUNK_BORDER;
+    vector<int16_t> buffer(N*N*N);
+
+    for (size_t i = 0; i < buffer.size(); ++i) {
+        in >= buffer[i];
+    }
+
+    chunk.volume = make_unique<Texture3d>(TextureDesc3d {
+        N, N, N, GL_R16F
+    });
+    chunk.volume->set_parameter(GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    chunk.volume->set_parameter(GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    chunk.volume->set_parameter(GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    chunk.volume->set_parameter(GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    chunk.volume->set_parameter(GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
+    chunk.volume->fill(buffer.data(), GL_RED, GL_SHORT);
+
+    in >= chunk.coord;
+    in >= chunk.origin;
+
+    return in;
+}
+
+istream &operator>>(istream &in, Scene &scene) {
+    scene.m_chunks.clear();
+    int chunk_size;
+    int chunk_border;
+    double voxel_size;
+
+    in >= chunk_size
+       >= chunk_border
+       >= voxel_size;
+
+    if (chunk_size != VM_CHUNK_SIZE
+            || chunk_border != VM_CHUNK_BORDER
+            || voxel_size != VM_VOXEL_SIZE) {
+        throw invalid_argument("Mismatched voxel format");
+    }
+
+    size_t num_chunks;
+    in >= num_chunks;
+    in >> *scene.m_camera.get();
+
+    for (size_t i = 0; i < num_chunks; ++i) {
+        size_t chunk_hash;
+        in >= chunk_hash;
+        in >> scene.m_chunks[chunk_hash];
+    }
+
+    return in;
+}
+
+ostream &operator<<(ostream &out, const Scene &scene) {
+    out <= VM_CHUNK_SIZE
+        <= VM_CHUNK_BORDER
+        <= VM_VOXEL_SIZE;
+
+    out <= scene.m_chunks.size();
+    out << *scene.m_camera.get();
+
+    for (const auto &it : scene.m_chunks) {
+        out <= it.first;
+        out << it.second;
+    }
+    return out;
 }
 
 } // namespace vm

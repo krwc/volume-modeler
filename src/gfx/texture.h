@@ -92,6 +92,13 @@ public:
     virtual GLuint id() const {
         return m_id;
     }
+
+    /* Read the entire texture data (in a specified format) to the user defined
+     * buffer */
+    void read(void *buffer, size_t size, GLenum format, GLenum type) const;
+
+    /* Fills level 0 of the texture with specified data in a specified format */
+    void fill(const void *buffer, GLenum format, GLenum type);
 };
 
 } // namespace vm

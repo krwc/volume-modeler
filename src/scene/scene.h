@@ -3,6 +3,7 @@
 #include <memory>
 #include <vector>
 #include <unordered_map>
+#include <iostream>
 
 #include "scene/camera.h"
 #include "scene/brush.h"
@@ -20,6 +21,9 @@ class Scene {
         glm::ivec3 coord;
         glm::vec3 origin;
     };
+
+    friend std::ostream &operator<<(std::ostream &out, const Chunk &chunk);
+    friend std::istream &operator>>(std::istream &in, Chunk &chunk);
 
     std::shared_ptr<Camera> m_camera;
     std::unordered_map<size_t, Chunk> m_chunks;
@@ -79,6 +83,12 @@ public:
     inline const std::shared_ptr<Camera> get_camera() const {
         return m_camera;
     }
+
+    /** Serializes the scene into given stream. (NOTE: this is non-portable) */
+    friend std::istream &operator>>(std::istream &in, Scene &scene);
+
+    /** Initializes the scene from the stream. (NOTE: this is non-portable) */
+    friend std::ostream &operator<<(std::ostream &out, const Scene &scene);
 };
 
 } // namespace vm
