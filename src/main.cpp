@@ -246,7 +246,7 @@ int main(int argc, char **argv) {
     init();
 
     if (argc == 2) {
-        ifstream persistence("scene.dat", ios::binary);
+        ifstream persistence(argv[1], ios::binary);
         persistence >> *g_scene.get();
         g_rotx = g_camera->get_rotation_x();
         g_roty = g_camera->get_rotation_y();
