@@ -111,11 +111,14 @@ void Renderer::render(const Scene &scene) {
     auto &&chunks = scene.get_chunks_to_render();
 
     for (size_t i = 0; i < chunks.size(); i += VM_CHUNKS_PER_PASS) {
+        int num_chunks = 0;
         for (size_t j = i; j-i < VM_CHUNKS_PER_PASS && j < chunks.size(); j++) {
             m_raymarcher.set_constant(m_origin_refs[j-i], chunks[j]->origin);
             glActiveTexture(GL_TEXTURE0 + j-i);
             glBindTexture(GL_TEXTURE_3D, chunks[j]->volume->id());
+            ++num_chunks;
         }
+        m_raymarcher.set_constant("num_chunks", num_chunks);
         glDrawArrays(GL_TRIANGLES, 0, 6);
     }
 #if 0

@@ -6,8 +6,9 @@ uniform mat4 inv_view;
 uniform vec3 camera_origin;
 uniform float camera_far_plane;
 
-uniform float tolerance = 0.001;
+uniform float tolerance = 0.05 * VM_VOXEL_SIZE;
 uniform vec3 chunk_origin[VM_CHUNKS_PER_PASS];
+uniform int num_chunks;
 
 in vec2 uv;
 
@@ -64,7 +65,7 @@ vec4 volume_sdf(in int chunk_id, in vec3 p) {
         return vec4(0, 0, 0, d);
     }
 
-    const float uv_offset = 3.8 * 0.5 / (VM_CHUNK_SIZE + VM_CHUNK_BORDER);
+    const float uv_offset = 4.8 * 0.5 / (VM_CHUNK_SIZE + VM_CHUNK_BORDER);
     const float sp0 = volume_sample(chunk_id, p + vec3(uv_offset, 0, 0));
     const float sp1 = volume_sample(chunk_id, p + vec3(0, uv_offset, 0));
     const float sp2 = volume_sample(chunk_id, p + vec3(0, 0, uv_offset));
@@ -105,18 +106,18 @@ void main() {
 
     vec4 result = vec4(0.3, 0.3, 0.3, camera_far_plane);
     #pragma unroll
-    for (int i = 0; i < VM_CHUNKS_PER_PASS; ++i) {
+    for (int i = 0; i < num_chunks; ++i) {
         if (is_ray_hitting_volume(i, camera_origin, inv_r, t)) {
             /* Far beyond camera far plane */
             if (t >= camera_far_plane) {
                 continue;
             }
 
-            vec4 current = raymarch(i, xy, camera_origin, r, max(0.25, t));
+            vec4 current = raymarch(i, xy, camera_origin, r,
+                                    max(0.25, t - VM_VOXEL_SIZE));
 
             if (current.w < result.w) {
                 result = current;
-                break;
             }
         }
     }
