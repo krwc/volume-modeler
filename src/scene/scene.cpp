@@ -110,9 +110,9 @@ void Scene::sample(const Brush &brush, Operation op) {
                                    VM_CHUNK_SIZE + VM_CHUNK_BORDER, GL_R16F });
             node.volume->set_parameter(GL_TEXTURE_MIN_FILTER, GL_LINEAR);
             node.volume->set_parameter(GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-            node.volume->set_parameter(GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-            node.volume->set_parameter(GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-            node.volume->set_parameter(GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
+            node.volume->set_parameter(GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
+            node.volume->set_parameter(GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
+            node.volume->set_parameter(GL_TEXTURE_WRAP_R, GL_CLAMP_TO_BORDER);
             node.volume->clear(1e5, 1e5, 1e5, 1e5);
         }
         m_sampler.set_constant("chunk_origin", get_chunk_origin(x, y, z));
