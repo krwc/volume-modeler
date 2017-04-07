@@ -151,7 +151,8 @@ static void handle_scroll(GLFWwindow *window, double xoffset, double yoffset) {
     if (glfwGetKey(g_window, GLFW_KEY_Z)) {
         g_brush_scale.z += 2*VM_VOXEL_SIZE * yoffset;
     }
-    g_brush_scale = max(vec3(1,1,1), g_brush_scale);
+    const float min_scale = 3.5 * VM_VOXEL_SIZE;
+    g_brush_scale = max(vec3(min_scale, min_scale, min_scale), g_brush_scale);
 }
 
 static void handle_mouse() {
