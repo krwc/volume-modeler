@@ -23,6 +23,8 @@ Camera::Camera(const glm::vec3 &origin,
     : m_view()
     , m_proj()
     , m_origin(origin)
+    , m_rotx(0.0f)
+    , m_roty(0.0f)
     , m_fov(fov)
     , m_aspect_ratio(aspect_ratio)
     , m_near_plane(near_plane)
