@@ -1,4 +1,6 @@
+#include <GL/glew.h>
 #include <GLFW/glfw3.h>
+
 #include <stdexcept>
 #include <memory>
 #include <chrono>
@@ -54,6 +56,9 @@ static void init() {
     }
     glfwMakeContextCurrent(g_window);
     glfwSwapInterval(0);
+    if (glewInit() != GLEW_OK) {
+        throw runtime_error("cannot initialize glew");
+    }
     g_camera = make_shared<vm::Camera>();
     g_camera->set_origin({0,0,5});
     g_camera->set_aspect_ratio(float(g_window_width) / g_window_height);

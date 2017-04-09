@@ -10,6 +10,7 @@ include(FindPkgConfig)
 pkg_search_module(GL REQUIRED gl)
 pkg_search_module(GLFW3 REQUIRED glfw3)
 pkg_search_module(GLM REQUIRED glm)
+pkg_search_module(GLEW REQUIRED glew)
 
 set(VM_CHUNK_SIZE 150 CACHE STRING "Size of the scene chunk (150 recommended)")
 set(VM_CHUNK_BORDER 4 CACHE STRING "Chunk border improving chunk transitions quality (4 recommended)")
@@ -26,4 +27,4 @@ file(GLOB_RECURSE CPP_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp)
 file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/shaders DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
 
 add_executable(${PROJECT_NAME} ${CPP_SOURCES})
-target_link_libraries(${PROJECT_NAME} ${GL_LIBRARIES} ${GLFW3_LIBRARIES})
+target_link_libraries(${PROJECT_NAME} ${GL_LIBRARIES} ${GLFW3_LIBRARIES} ${GLEW_LIBRARIES})

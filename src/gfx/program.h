@@ -1,7 +1,6 @@
 #ifndef VM_GFX_PROGRAM_H
 #define VM_GFX_PROGRAM_H
-#define GL_GLEXT_PROTOTYPES
-#include <GL/gl.h>
+#include <GL/glew.h>
 
 #include <map>
 #include <string>
