@@ -12,7 +12,7 @@ pkg_search_module(GLFW3 REQUIRED glfw3)
 pkg_search_module(GLM REQUIRED glm)
 pkg_search_module(GLEW REQUIRED glew)
 
-set(VM_CHUNK_SIZE 150 CACHE STRING "Size of the scene chunk (150 recommended)")
+set(VM_CHUNK_SIZE 128 CACHE STRING "Size of the scene chunk (128 recommended)")
 set(VM_CHUNK_BORDER 4 CACHE STRING "Chunk border improving chunk transitions quality (4 recommended)")
 set(VM_VOXEL_SIZE 0.02 CACHE STRING "Size of the single voxel in chunk (0.02 recommended)")
 set(VM_CHUNKS_PER_PASS 16 CACHE STRING "Maximum number of chunks rendered in a single pass")
