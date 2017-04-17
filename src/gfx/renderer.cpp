@@ -114,8 +114,7 @@ void Renderer::render(const Scene &scene) {
         int num_chunks = 0;
         for (size_t j = i; j-i < VM_CHUNKS_PER_PASS && j < chunks.size(); j++) {
             m_raymarcher.set_constant(m_origin_refs[j-i], chunks[j]->origin);
-            glActiveTexture(GL_TEXTURE0 + j-i);
-            glBindTexture(GL_TEXTURE_3D, chunks[j]->volume->id());
+            glBindTextureUnit(j - i, chunks[j]->volume->id());
             ++num_chunks;
         }
         m_raymarcher.set_constant("num_chunks", num_chunks);
