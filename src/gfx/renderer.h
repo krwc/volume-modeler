@@ -9,6 +9,8 @@
 
 #include <glm/glm.hpp>
 
+#include <boost/compute/core.hpp>
+
 namespace vm {
 class Scene;
 class Camera;
@@ -25,6 +27,10 @@ class Renderer {
     Program m_box_drawer;
     std::unique_ptr<Buffer> m_triangle_vbo;
     std::unique_ptr<Buffer> m_shape_vbo;
+
+    boost::compute::device m_cl_device;
+    boost::compute::context m_cl_ctx;
+    boost::compute::command_queue m_cl_queue;
 
     uint64_t m_origin_refs[VM_CHUNKS_PER_PASS];
 
