@@ -77,9 +77,11 @@ void Renderer::init_shaders() {
 
 namespace compute = boost::compute;
 
-Renderer::Renderer()
+Renderer::Renderer(shared_ptr<ComputeContext> ctx)
     : m_raymarcher()
     , m_triangle_vbo()
+    , m_shape_vbo()
+    , m_compute_ctx(ctx)
     , m_raymarcher_vao(GL_NONE)
     , m_shape_vao(GL_NONE)
     , m_width(0)
@@ -95,16 +97,6 @@ Renderer::Renderer()
     glDepthFunc(GL_LEQUAL);
     glDepthRange(0.0f, 1.0f);
     glFrontFace(GL_CCW);
-
-    m_cl_device = compute::system::default_device();
-    cerr << "Device  : " << m_cl_device.name() << endl
-         << "Vendor  : " << m_cl_device.vendor() << endl
-         << "Version : " << m_cl_device.version() << endl
-         << "Profile : " << m_cl_device.profile() << endl
-         << "Memory  : " << (m_cl_device.global_memory_size() / 1024.0 / 1024.0)
-         << "MB" << endl;
-    m_cl_ctx = compute::context(m_cl_device);
-    m_cl_queue = compute::command_queue(m_cl_ctx, m_cl_device);
 }
 
 void Renderer::render(const Scene &scene) {

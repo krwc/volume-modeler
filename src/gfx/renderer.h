@@ -4,12 +4,11 @@
 #include "config.h"
 
 #include "gfx/buffer.h"
+#include "gfx/compute-context.h"
 #include "gfx/program.h"
 #include "gfx/texture.h"
 
 #include <glm/glm.hpp>
-
-#include <boost/compute/core.hpp>
 
 namespace vm {
 class Scene;
@@ -28,9 +27,7 @@ class Renderer {
     std::unique_ptr<Buffer> m_triangle_vbo;
     std::unique_ptr<Buffer> m_shape_vbo;
 
-    boost::compute::device m_cl_device;
-    boost::compute::context m_cl_ctx;
-    boost::compute::command_queue m_cl_queue;
+    std::shared_ptr<ComputeContext> m_compute_ctx;
 
     uint64_t m_origin_refs[VM_CHUNKS_PER_PASS];
 
@@ -43,7 +40,7 @@ class Renderer {
     void init_shaders();
 
 public:
-    Renderer();
+    Renderer(std::shared_ptr<ComputeContext> ctx);
     void render(const Scene &scene);
     void render(const std::shared_ptr<Camera> &camera, const Box &box);
     void resize(int screen_width, int screen_height);

@@ -7,6 +7,7 @@
 #include <fstream>
 
 #include "gfx/renderer.h"
+#include "gfx/compute-context.h"
 
 #include "scene/scene.h"
 #include "scene/brush-cube.h"
@@ -29,6 +30,7 @@ static GLFWwindow *g_window;
 static shared_ptr<vm::Camera> g_camera;
 static unique_ptr<vm::Scene> g_scene;
 static unique_ptr<vm::Renderer> g_renderer;
+static shared_ptr<vm::ComputeContext> g_compute_ctx;
 
 static chrono::time_point<chrono::steady_clock> g_frametime_beg;
 static chrono::time_point<chrono::steady_clock> g_frametime_end;
@@ -66,7 +68,8 @@ static void init() {
     g_scene = make_unique<vm::Scene>();
     g_scene->set_camera(g_camera);
 
-    g_renderer = make_unique<vm::Renderer>();
+    g_compute_ctx = vm::make_compute_context();
+    g_renderer = make_unique<vm::Renderer>(g_compute_ctx);
     g_renderer->resize(g_window_width, g_window_height);
     glfwSetScrollCallback(g_window, handle_scroll);
 }
