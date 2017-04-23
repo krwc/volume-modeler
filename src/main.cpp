@@ -5,6 +5,7 @@
 #include <memory>
 #include <chrono>
 #include <fstream>
+#include <thread>
 
 #include "gfx/renderer.h"
 #include "gfx/compute-context.h"
@@ -52,7 +53,7 @@ static void init() {
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
     g_window = glfwCreateWindow(g_window_width, g_window_height,
-                                "volume-modeler", nullptr, nullptr);
+                                          "volume-modeler", nullptr, nullptr);
     if (!g_window) {
         throw runtime_error("cannot create window");
     }
@@ -65,17 +66,13 @@ static void init() {
     g_camera->set_origin({0,0,5});
     g_camera->set_aspect_ratio(float(g_window_width) / g_window_height);
 
-    g_scene = make_unique<vm::Scene>();
+    g_compute_ctx = vm::make_compute_context();
+    g_scene = make_unique<vm::Scene>(g_compute_ctx);
     g_scene->set_camera(g_camera);
 
-    g_compute_ctx = vm::make_compute_context();
     g_renderer = make_unique<vm::Renderer>(g_compute_ctx);
     g_renderer->resize(g_window_width, g_window_height);
     glfwSetScrollCallback(g_window, handle_scroll);
-}
-
-static void deinit() {
-    glfwDestroyWindow(g_window);
 }
 
 static void handle_resize() {
@@ -231,7 +228,7 @@ static void render_scene() {
         brush_color,
         brush_transform
     };
-    g_renderer->render(g_camera, brush_box);
+    //g_renderer->render(g_camera, brush_box);
 }
 
 static void report_frametime() {
@@ -275,6 +272,9 @@ int main(int argc, char **argv) {
         glfwSwapBuffers(g_window);
         g_frametime_end = steady_clock::now();
     }
-    deinit();
+    glFlush();
+    glFinish();
+    clFlush(g_compute_ctx->queue.get());
+    clFinish(g_compute_ctx->queue.get());
     return 0;
 }

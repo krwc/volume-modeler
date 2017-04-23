@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 2.8)
+cmake_minimum_required(VERSION 3.1)
 project(volume-modeler)
 
 set(CMAKE_CXX_STANDARD 14)
@@ -27,6 +27,12 @@ add_subdirectory(src)
 
 file(GLOB_RECURSE CPP_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp)
 file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/shaders DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
+
+file(GLOB_RECURSE CL_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/kernels/*)
+foreach(filename ${CL_SOURCES})
+    file(RELATIVE_PATH relative_filename ${CMAKE_CURRENT_SOURCE_DIR} ${filename})
+    configure_file(${filename} ${CMAKE_CURRENT_BINARY_DIR}/${relative_filename})
+endforeach()
 
 add_executable(${PROJECT_NAME} ${CPP_SOURCES})
 target_link_libraries(${PROJECT_NAME} ${GL_LIBRARIES} ${OPENCL_LIBRARIES} ${GLFW3_LIBRARIES} ${GLEW_LIBRARIES})

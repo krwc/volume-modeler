@@ -22,15 +22,19 @@ struct Box {
 };
 
 class Renderer {
-    Program m_raymarcher;
+    Program m_tex_drawer;
     Program m_box_drawer;
     std::unique_ptr<Buffer> m_triangle_vbo;
     std::unique_ptr<Buffer> m_shape_vbo;
 
     std::shared_ptr<ComputeContext> m_compute_ctx;
+    std::unique_ptr<Texture2d> m_frame;
+    compute::kernel m_raymarcher;
+    compute::kernel m_initializer;
+    compute::image2d m_depth;
+    compute::opengl_texture m_cl_frame;
 
-    uint64_t m_origin_refs[VM_CHUNKS_PER_PASS];
-
+#warning "TODO: This is not a raymarcher's VAO"
     GLuint m_raymarcher_vao;
     GLuint m_shape_vao;
     int m_width;
@@ -38,6 +42,8 @@ class Renderer {
 
     void init_buffer();
     void init_shaders();
+    void init_kernels();
+    void init_textures();
 
 public:
     Renderer(std::shared_ptr<ComputeContext> ctx);

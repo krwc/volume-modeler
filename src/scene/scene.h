@@ -8,8 +8,10 @@
 #include "scene/camera.h"
 #include "scene/brush.h"
 
-#include "gfx/program.h"
 #include "gfx/texture.h"
+#include "gfx/compute-context.h"
+
+#include <boost/optional.hpp>
 
 namespace vm {
 
@@ -17,7 +19,7 @@ class Scene {
     friend class Renderer;
 
     struct Chunk {
-        std::unique_ptr<Texture3d> volume;
+        boost::optional<compute::image3d> volume;
         glm::ivec3 coord;
         glm::vec3 origin;
     };
@@ -26,8 +28,12 @@ class Scene {
     friend std::istream &operator>>(std::istream &in, Chunk &chunk);
 
     std::shared_ptr<Camera> m_camera;
+    std::shared_ptr<ComputeContext> m_compute_ctx;
     std::unordered_map<size_t, Chunk> m_chunks;
-    Program m_sampler;
+    const compute::image_format m_volume_format;
+    compute::kernel m_initializer;
+    compute::kernel m_sphere_sampler;
+    compute::kernel m_cube_sampler;
 
     /**
      * Used by the Renderer to get visible chunks ordered in a front to back
@@ -59,8 +65,11 @@ class Scene {
     /** Performs sampling of the brush */
     void sample(const Brush &brush, Operation op);
 
+    /** Returns an appropriate sampler for given brush type */
+    compute::kernel &get_sampler(int brush_id);
+
 public:
-    Scene();
+    Scene(std::shared_ptr<ComputeContext> compute_ctx);
 
     /**
      * Samples @p brush over the scene adding its volume to it.

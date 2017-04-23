@@ -1,30 +1,34 @@
 #include "config.h"
 #include "scene.h"
 
+#include "utils/compute-interop.h"
 #include "utils/persistence.h"
 
 #include <glm/gtx/norm.hpp>
+#include <glm/gtc/type_ptr.hpp>
 
 #include <algorithm>
 
 #include <cstring>
 
-namespace vm {
 using namespace std;
 using namespace glm;
+namespace vm {
 
 #define CHUNK_WORLD_SIZE (VM_CHUNK_SIZE * VM_VOXEL_SIZE)
 
-Scene::Scene()
+Scene::Scene(shared_ptr<ComputeContext> compute_ctx)
     : m_camera()
+    , m_compute_ctx(compute_ctx)
     , m_chunks()
-    , m_sampler() {
-    m_sampler.define("VM_VOXEL_SIZE", to_string(VM_VOXEL_SIZE));
-    m_sampler.define("VM_CHUNK_SIZE", to_string(VM_CHUNK_SIZE));
-    m_sampler.define("VM_CHUNK_BORDER", to_string(VM_CHUNK_BORDER));
-    m_sampler.set_shader_from_file(GL_COMPUTE_SHADER, "shaders/sampler.glsl");
-    m_sampler.compile();
-    m_sampler.link();
+    , m_volume_format(compute::image_format::r, compute::image_format::float16) {
+    auto program =
+            compute::program::create_with_source_file("kernels/samplers.cl",
+                                                      m_compute_ctx->context);
+    program.build();
+    m_sphere_sampler = program.create_kernel("sample_sphere");
+    m_cube_sampler = program.create_kernel("sample_cube");
+    m_initializer = program.create_kernel("initialize");
 }
 
 vector<const Scene::Chunk *> Scene::get_chunks_to_render() const {
@@ -77,6 +81,17 @@ vec3 Scene::get_chunk_origin(int x, int y, int z) const {
     return vec3(CHUNK_WORLD_SIZE * dvec3(x, y, z));
 }
 
+compute::kernel &Scene::get_sampler(int brush_id) {
+    switch (brush_id) {
+    case 0: return m_sphere_sampler;
+    case 1: return m_cube_sampler;
+    default:
+        throw invalid_argument("No sampler for given brush_id="
+                               + to_string(brush_id));
+    }
+}
+
+
 void Scene::sample(const Brush &brush, Operation op) {
     ivec3 region_min, region_max;
     get_affected_region(region_min, region_max, brush.get_aabb());
@@ -88,12 +103,11 @@ void Scene::sample(const Brush &brush, Operation op) {
             region_min.x, region_min.y, region_min.z,
             region_max.x, region_max.y, region_max.z);
 
-    glUseProgram(m_sampler.id());
-    m_sampler.set_constant("brush", brush.id());
-    m_sampler.set_constant("brush_origin", brush.get_origin());
-    m_sampler.set_constant("brush_scale", 0.5f * brush.get_scale());
-    m_sampler.set_constant("brush_rotation", brush.get_rotation());
-    m_sampler.set_constant("operation", (int) op);
+    compute::kernel &sampler = get_sampler(brush.id());
+    sampler.set_arg(2, static_cast<int>(op));
+    sampler.set_arg(4, brush.get_origin());
+    sampler.set_arg(5, 0.5f * brush.get_scale());
+    sampler.set_arg(6, brush.get_rotation());
 
     for (int z = region_min.z; z <= region_max.z; ++z) {
     for (int y = region_min.y; y <= region_max.y; ++y) {
@@ -102,28 +116,42 @@ void Scene::sample(const Brush &brush, Operation op) {
         auto &&node = m_chunks[current];
 
         if (!node.volume) {
-            node.coord = ivec3(x, y, z);
+            node.volume = move(compute::image3d(
+                    m_compute_ctx->context,
+                    VM_CHUNK_SIZE + VM_CHUNK_BORDER,
+                    VM_CHUNK_SIZE + VM_CHUNK_BORDER,
+                    VM_CHUNK_SIZE + VM_CHUNK_BORDER,
+                    m_volume_format));
             node.origin = get_chunk_origin(x, y, z);
-            node.volume = make_unique<Texture3d>(
-                    TextureDesc3d{ VM_CHUNK_SIZE + VM_CHUNK_BORDER,
-                                   VM_CHUNK_SIZE + VM_CHUNK_BORDER,
-                                   VM_CHUNK_SIZE + VM_CHUNK_BORDER, GL_R16F });
-            node.volume->set_parameter(GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-            node.volume->set_parameter(GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-            node.volume->set_parameter(GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
-            node.volume->set_parameter(GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
-            node.volume->set_parameter(GL_TEXTURE_WRAP_R, GL_CLAMP_TO_BORDER);
-            node.volume->clear(1e5, 1e5, 1e5, 1e5);
-            glMemoryBarrier(GL_TEXTURE_UPDATE_BARRIER_BIT);
+            node.coord = ivec3(x, y, z);
+
+            m_initializer.set_arg(0, *node.volume);
+            m_initializer.set_arg(1, vec4(1e5, 1e5, 1e5, 1e5));
+            m_compute_ctx->queue.enqueue_nd_range_kernel(
+                    m_initializer, 3, nullptr,
+                    compute::dim(VM_CHUNK_SIZE + VM_CHUNK_BORDER,
+                                 VM_CHUNK_SIZE + VM_CHUNK_BORDER,
+                                 VM_CHUNK_SIZE + VM_CHUNK_BORDER)
+                            .data(),
+                    nullptr);
+            fprintf(stderr, "Created node (%d, %d, %d), number of nodes: %zu\n",
+                    x, y, z, m_chunks.size());
         }
-        m_sampler.set_constant("chunk_origin", get_chunk_origin(x, y, z));
-        glBindImageTexture(0, node.volume->id(), 0, GL_TRUE, 0, GL_READ_WRITE,
-                           GL_R16F);
-        glDispatchCompute(VM_CHUNK_SIZE + VM_CHUNK_BORDER,
-                          VM_CHUNK_SIZE + VM_CHUNK_BORDER,
-                          VM_CHUNK_SIZE + VM_CHUNK_BORDER);
+        // Fuck standards. OpenCL < 2.0 standard does not allow images to be read-write,
+        // but it works anyway on every device I tested against, so... why bother?
+        sampler.set_arg(0, *node.volume);
+        sampler.set_arg(1, *node.volume);
+        sampler.set_arg(3, node.origin);
+        m_compute_ctx->queue.enqueue_nd_range_kernel(
+                sampler, 3, nullptr,
+                compute::dim(VM_CHUNK_SIZE + VM_CHUNK_BORDER,
+                             VM_CHUNK_SIZE + VM_CHUNK_BORDER,
+                             VM_CHUNK_SIZE + VM_CHUNK_BORDER)
+                        .data(),
+                nullptr);
+        m_compute_ctx->queue.flush();
     }}}
-    glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
+    m_compute_ctx->queue.finish();
 }
 
 void Scene::add(const Brush &brush) {
@@ -137,10 +165,7 @@ void Scene::sub(const Brush &brush) {
 ostream &operator<<(ostream &out, const Scene::Chunk &chunk) {
     const size_t N = VM_CHUNK_SIZE + VM_CHUNK_BORDER;
     vector<int16_t> buffer(N*N*N);
-
-    chunk.volume->read(buffer.data(), sizeof(uint16_t) * buffer.size(), GL_RED,
-                       GL_SHORT);
-
+#warning "FIXME: persistence"
     for (size_t i = 0; i < buffer.size(); ++i) {
         out <= buffer[i];
     }
@@ -158,17 +183,7 @@ istream &operator>>(istream &in, Scene::Chunk &chunk) {
     for (size_t i = 0; i < buffer.size(); ++i) {
         in >= buffer[i];
     }
-
-    chunk.volume = make_unique<Texture3d>(TextureDesc3d {
-        N, N, N, GL_R16F
-    });
-    chunk.volume->set_parameter(GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    chunk.volume->set_parameter(GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    chunk.volume->set_parameter(GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-    chunk.volume->set_parameter(GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-    chunk.volume->set_parameter(GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
-    chunk.volume->fill(buffer.data(), GL_RED, GL_SHORT);
-
+#warning "FIXME: persistence"
     in >= chunk.coord;
     in >= chunk.origin;
 
