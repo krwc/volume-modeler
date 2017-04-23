@@ -114,16 +114,16 @@ void Scene::sample(const Brush &brush, Operation op) {
             node.volume->set_parameter(GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
             node.volume->set_parameter(GL_TEXTURE_WRAP_R, GL_CLAMP_TO_BORDER);
             node.volume->clear(1e5, 1e5, 1e5, 1e5);
+            glMemoryBarrier(GL_TEXTURE_UPDATE_BARRIER_BIT);
         }
         m_sampler.set_constant("chunk_origin", get_chunk_origin(x, y, z));
-        glMemoryBarrier(GL_TEXTURE_UPDATE_BARRIER_BIT);
         glBindImageTexture(0, node.volume->id(), 0, GL_TRUE, 0, GL_READ_WRITE,
                            GL_R16F);
         glDispatchCompute(VM_CHUNK_SIZE + VM_CHUNK_BORDER,
                           VM_CHUNK_SIZE + VM_CHUNK_BORDER,
                           VM_CHUNK_SIZE + VM_CHUNK_BORDER);
-        glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
     }}}
+    glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
 }
 
 void Scene::add(const Brush &brush) {
