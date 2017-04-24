@@ -163,14 +163,15 @@ void Renderer::render(const Scene &scene) {
             m_initializer, 2, nullptr, compute::dim(m_width, m_height).data(),
             nullptr);
 
-#warning "TODO: multiple images per job"
+    m_raymarcher.set_arg(0, m_cl_frame);
+    m_raymarcher.set_arg(1, m_depth);
+    m_raymarcher.set_arg(2, m_depth);
+    m_raymarcher.set_arg(3, sizeof(camera_repr), &camera_repr);
+
+#warning "TODO: multiple images per job (or not? it was slower when I initially tested it)"
     for (auto &&chunk : scene.get_chunks_to_render()) {
-        m_raymarcher.set_arg(0, m_cl_frame);
-        m_raymarcher.set_arg(1, m_depth);
-        m_raymarcher.set_arg(2, m_depth);
-        m_raymarcher.set_arg(3, *chunk->volume);
-        m_raymarcher.set_arg(4, chunk->origin);
-        m_raymarcher.set_arg(5, sizeof(camera_repr), &camera_repr);
+        m_raymarcher.set_arg(4, *chunk->volume);
+        m_raymarcher.set_arg(5, chunk->origin);
 
         m_compute_ctx->queue.enqueue_nd_range_kernel(
                 m_raymarcher,

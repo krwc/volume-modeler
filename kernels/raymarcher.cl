@@ -144,19 +144,17 @@ kernel void initialize(write_only image2d_t output,
 kernel void raymarcher(write_only image2d_t output,
                        read_only image2d_t in_depth,
                        write_only image2d_t out_depth,
+                       Camera camera,
                        read_only image3d_t volume,
-                       float3 chunk_origin,
-                       Camera camera) {
-    // TODO: Why are such (u,v) coords faster than default?!
+                       float3 chunk_origin) {
     const int u = SCREEN_WIDTH - 1 - get_global_id(0);
-    const int v = /*SCREEN_HEIGHT - 1 -*/ get_global_id(1);
+    const int v = get_global_id(1);
     const float3 r = get_ray(u, v, &camera);
     const float3 inv_r = 1.0f / r;
     float tmin = 0.0f;
     float tmax = 0.0f;
 
     float4 result = (float4)(0.3f, 0.3f, 0.3f, camera.far);
-    // TODO: FOR LOOP OVER ALL VOLUMES
     float depth = read_imagef(in_depth, nearest_sampler, (int2)(u, v)).x;
 
     if (is_ray_hitting_volume(chunk_origin, camera.origin, inv_r, &tmin, &tmax)) {
