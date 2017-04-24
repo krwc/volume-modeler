@@ -24,9 +24,6 @@ class Scene {
         glm::vec3 origin;
     };
 
-    friend std::ostream &operator<<(std::ostream &out, const Chunk &chunk);
-    friend std::istream &operator>>(std::istream &in, Chunk &chunk);
-
     std::shared_ptr<Camera> m_camera;
     std::shared_ptr<ComputeContext> m_compute_ctx;
     std::unordered_map<size_t, Chunk> m_chunks;
@@ -34,6 +31,9 @@ class Scene {
     compute::kernel m_initializer;
     compute::kernel m_sphere_sampler;
     compute::kernel m_cube_sampler;
+
+    void persist_chunk(std::ostream &out, const Chunk &chunk) const;
+    void restore_chunk(std::istream &in, Chunk &chunk);
 
     /**
      * Used by the Renderer to get visible chunks ordered in a front to back

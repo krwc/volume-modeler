@@ -162,32 +162,41 @@ void Scene::sub(const Brush &brush) {
     sample(brush, Operation::Sub);
 }
 
-ostream &operator<<(ostream &out, const Scene::Chunk &chunk) {
+void Scene::persist_chunk(ostream &out, const Scene::Chunk &chunk) const {
     const size_t N = VM_CHUNK_SIZE + VM_CHUNK_BORDER;
     vector<int16_t> buffer(N*N*N);
-#warning "FIXME: persistence"
+    m_compute_ctx->queue.enqueue_read_image<3>(*chunk.volume,
+                                               compute::dim(0, 0, 0),
+                                               compute::dim(N, N, N),
+                                               buffer.data());
+    m_compute_ctx->queue.flush();
+    m_compute_ctx->queue.finish();
     for (size_t i = 0; i < buffer.size(); ++i) {
         out <= buffer[i];
     }
 
     out <= chunk.coord;
     out <= chunk.origin;
-
-    return out;
 }
 
-istream &operator>>(istream &in, Scene::Chunk &chunk) {
+void Scene::restore_chunk(istream &in, Scene::Chunk &chunk) {
     const size_t N = VM_CHUNK_SIZE + VM_CHUNK_BORDER;
     vector<int16_t> buffer(N*N*N);
 
     for (size_t i = 0; i < buffer.size(); ++i) {
         in >= buffer[i];
     }
-#warning "FIXME: persistence"
+    chunk.volume = move(
+            compute::image3d(m_compute_ctx->context, N, N, N, m_volume_format));
+
+    m_compute_ctx->queue.enqueue_write_image<3>(*chunk.volume,
+                                                compute::dim(0, 0, 0),
+                                                compute::dim(N, N, N),
+                                                buffer.data());
+    m_compute_ctx->queue.flush();
+    m_compute_ctx->queue.finish();
     in >= chunk.coord;
     in >= chunk.origin;
-
-    return in;
 }
 
 istream &operator>>(istream &in, Scene &scene) {
@@ -213,7 +222,7 @@ istream &operator>>(istream &in, Scene &scene) {
     for (size_t i = 0; i < num_chunks; ++i) {
         size_t chunk_hash;
         in >= chunk_hash;
-        in >> scene.m_chunks[chunk_hash];
+        scene.restore_chunk(in, scene.m_chunks[chunk_hash]);
     }
 
     return in;
@@ -229,7 +238,7 @@ ostream &operator<<(ostream &out, const Scene &scene) {
 
     for (const auto &it : scene.m_chunks) {
         out <= it.first;
-        out << it.second;
+        scene.persist_chunk(out, it.second);
     }
     return out;
 }
