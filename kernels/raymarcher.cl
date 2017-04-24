@@ -121,7 +121,6 @@ float4 raymarch(read_only image3d_t volume,
     }
 
     for (int i = 0; i < MAX_STEPS; ++i) {
-        // TODO: test how big speedup with mad() we can get there
         float3 p = camera->origin + z * (*r);
         float4 s = volume_sdf(volume, chunk_origin, &p);
 
@@ -148,8 +147,9 @@ kernel void raymarcher(write_only image2d_t output,
                        read_only image3d_t volume,
                        float3 chunk_origin,
                        Camera camera) {
+    // TODO: Why are such (u,v) coords faster than default?!
     const int u = SCREEN_WIDTH - 1 - get_global_id(0);
-    const int v = SCREEN_HEIGHT - 1 - get_global_id(1);
+    const int v = /*SCREEN_HEIGHT - 1 -*/ get_global_id(1);
     const float3 r = get_ray(u, v, &camera);
     const float3 inv_r = 1.0f / r;
     float tmin = 0.0f;
