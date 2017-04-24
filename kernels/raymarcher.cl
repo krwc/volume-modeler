@@ -148,8 +148,8 @@ kernel void raymarcher(write_only image2d_t output,
                        read_only image3d_t volume,
                        float3 chunk_origin,
                        Camera camera) {
-    const int u = 1399 - get_global_id(0);
-    const int v = 899 - get_global_id(1);
+    const int u = SCREEN_WIDTH - 1 - get_global_id(0);
+    const int v = SCREEN_HEIGHT - 1 - get_global_id(1);
     const float3 r = get_ray(u, v, &camera);
     const float3 inv_r = 1.0f / r;
     float tmin = 0.0f;
