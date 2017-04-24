@@ -223,6 +223,7 @@ istream &operator>>(istream &in, Scene &scene) {
         size_t chunk_hash;
         in >= chunk_hash;
         scene.restore_chunk(in, scene.m_chunks[chunk_hash]);
+        fprintf(stderr, "Restored (%zu/%zu)\n", i + 1, num_chunks);
     }
 
     return in;
@@ -236,9 +237,11 @@ ostream &operator<<(ostream &out, const Scene &scene) {
     out <= scene.m_chunks.size();
     out << *scene.m_camera.get();
 
+    int index = 0;
     for (const auto &it : scene.m_chunks) {
         out <= it.first;
         scene.persist_chunk(out, it.second);
+        fprintf(stderr, "Persisted (%d/%zu)\n", ++index, scene.m_chunks.size());
     }
     return out;
 }
