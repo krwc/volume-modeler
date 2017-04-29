@@ -272,9 +272,5 @@ int main(int argc, char **argv) {
         glfwSwapBuffers(g_window);
         g_frametime_end = steady_clock::now();
     }
-    glFlush();
-    glFinish();
-    clFlush(g_compute_ctx->queue.get());
-    clFinish(g_compute_ctx->queue.get());
     return 0;
 }
