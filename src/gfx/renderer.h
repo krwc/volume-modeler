@@ -21,6 +21,54 @@ struct Box {
     glm::mat3 transform;
 };
 
+class RaiiGLObject {
+public:
+    typedef std::function<void(GLsizei, GLuint *)> CreateFunc;
+    typedef std::function<void(GLsizei, GLuint *)> DeleteFunc;
+
+    RaiiGLObject(const RaiiGLObject &) = delete;
+    RaiiGLObject &operator=(const RaiiGLObject &) = delete;
+
+    RaiiGLObject(CreateFunc &&create_f, DeleteFunc &&delete_f)
+        : m_id(GL_NONE)
+        , m_deleter(delete_f) {
+        create_f(1, &m_id);
+        assert(m_id > 0);
+    }
+
+    ~RaiiGLObject() {
+        if (m_id != GL_NONE) {
+            m_deleter(1, &m_id);
+        }
+    }
+
+    RaiiGLObject(RaiiGLObject &&other) : m_id(GL_NONE) {
+        *this = std::move(other);
+    }
+
+    RaiiGLObject &operator=(RaiiGLObject &&other) {
+        if (&other != this) {
+            m_id = other.m_id;
+            other.m_id = GL_NONE;
+        }
+        return *this;
+    }
+
+    operator GLuint() const {
+        return m_id;
+    }
+
+private:
+    GLuint m_id;
+    DeleteFunc m_deleter;
+
+};
+
+class Vao : public RaiiGLObject {
+public:
+    Vao() : RaiiGLObject(glCreateVertexArrays, glDeleteVertexArrays) {}
+};
+
 class Renderer {
     Program m_tex_drawer;
     Program m_box_drawer;
@@ -29,13 +77,15 @@ class Renderer {
 
     std::shared_ptr<ComputeContext> m_compute_ctx;
     std::unique_ptr<Texture2d> m_frame;
+    std::unique_ptr<Texture2d> m_depth;
+
     compute::kernel m_raymarcher;
     compute::kernel m_initializer;
-    compute::image2d m_depth;
+    compute::opengl_texture m_cl_depth;
     compute::opengl_texture m_cl_frame;
 
-    GLuint m_triangle_vao;
-    GLuint m_shape_vao;
+    Vao m_triangle_vao;
+    Vao m_shape_vao;
     int m_width;
     int m_height;
 

@@ -228,7 +228,7 @@ static void render_scene() {
         brush_color,
         brush_transform
     };
-    //g_renderer->render(g_camera, brush_box);
+    g_renderer->render(g_camera, brush_box);
 }
 
 static void report_frametime() {

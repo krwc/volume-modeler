@@ -35,13 +35,10 @@ void Renderer::init_buffer() {
         4096
     });
 
-    glCreateVertexArrays(1, &m_triangle_vao);
-    assert(m_triangle_vao > 0);
     glEnableVertexArrayAttrib(m_triangle_vao, 0);
     glVertexArrayAttribFormat(m_triangle_vao, 0, 2, GL_FLOAT, GL_FALSE, 0u);
     glVertexArrayAttribBinding(m_triangle_vao, 0, 0);
 
-    glCreateVertexArrays(1, &m_shape_vao);
     glEnableVertexArrayAttrib(m_shape_vao, 0);
     glVertexArrayAttribFormat(m_shape_vao, 0, 3, GL_FLOAT, GL_FALSE, 0u);
     glVertexArrayAttribBinding(m_shape_vao, 0, 0);
@@ -89,19 +86,23 @@ void Renderer::init_textures() {
     m_frame->set_parameter(GL_TEXTURE_MIN_FILTER, GL_NEAREST);
     m_frame->set_parameter(GL_TEXTURE_MAG_FILTER, GL_NEAREST);
     m_frame->clear(0,0,0,0);
+
+    m_depth = make_unique<Texture2d>(
+            TextureDesc2d{ m_width, m_height, GL_R32F });
+    m_depth->set_parameter(GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    m_depth->set_parameter(GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    m_depth->clear(1,1,1,1);
+
     m_cl_frame = compute::opengl_texture(m_compute_ctx->context, GL_TEXTURE_2D,
                                          0, m_frame->id());
-
-    m_depth = compute::image2d(
-            m_compute_ctx->context, m_width, m_height,
-            compute::image_format(compute::image_format::r,
-                                  compute::image_format::float32));
+    m_cl_depth = compute::opengl_texture(m_compute_ctx->context, GL_TEXTURE_2D,
+                                         0, m_depth->id());
 }
 
 Renderer::Renderer(shared_ptr<ComputeContext> ctx)
     : m_compute_ctx(ctx)
-    , m_triangle_vao(GL_NONE)
-    , m_shape_vao(GL_NONE)
+    , m_triangle_vao()
+    , m_shape_vao()
     , m_width(0)
     , m_height(0) {
     init_buffer();
@@ -142,9 +143,15 @@ void Renderer::render(const Scene &scene) {
     // TODO: Boost somehow does some craziness when acquiring context (it creates some
     // temporary contexts fuck knows why). Therefore we're using lower-level API to
     // avoid that.
+    const cl_mem objects_to_acquire[] = {
+        m_cl_frame.get(),
+        m_cl_depth.get()
+    };
+    const size_t num_objects =
+            sizeof(objects_to_acquire) / sizeof(*objects_to_acquire);
     clEnqueueAcquireGLObjects(m_compute_ctx->queue.get(),
-                              1,
-                              &m_cl_frame.get(),
+                              num_objects,
+                              objects_to_acquire,
                               0,
                               nullptr,
                               nullptr);
@@ -156,15 +163,15 @@ void Renderer::render(const Scene &scene) {
             m_initializer, 2, nullptr, compute::dim(m_width, m_height).data(),
             nullptr);
     // Clear depth
-    m_initializer.set_arg(0, m_depth);
+    m_initializer.set_arg(0, m_cl_depth);
     m_initializer.set_arg(1, vec4(1, 1, 1, 1));
     m_compute_ctx->queue.enqueue_nd_range_kernel(
             m_initializer, 2, nullptr, compute::dim(m_width, m_height).data(),
             nullptr);
 
     m_raymarcher.set_arg(0, m_cl_frame);
-    m_raymarcher.set_arg(1, m_depth);
-    m_raymarcher.set_arg(2, m_depth);
+    m_raymarcher.set_arg(1, m_cl_depth);
+    m_raymarcher.set_arg(2, m_cl_depth);
     m_raymarcher.set_arg(3, sizeof(camera_repr), &camera_repr);
 
 #warning "TODO: multiple images per job (or not? it was slower when I initially tested it)"
@@ -181,8 +188,8 @@ void Renderer::render(const Scene &scene) {
     }
 
     clEnqueueReleaseGLObjects(m_compute_ctx->queue.get(),
-                              1,
-                              &m_cl_frame.get(),
+                              num_objects,
+                              objects_to_acquire,
                               0,
                               nullptr,
                               nullptr);
@@ -198,6 +205,7 @@ void Renderer::render(const Scene &scene) {
 
     glUseProgram(m_tex_drawer.id());
     glBindTextureUnit(0, m_frame->id());
+    glBindTextureUnit(1, m_depth->id());
     glDrawArrays(GL_TRIANGLES, 0, 6);
 
 #if 0
