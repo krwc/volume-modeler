@@ -83,8 +83,8 @@ vec3 Scene::get_chunk_origin(int x, int y, int z) const {
 
 compute::kernel &Scene::get_sampler(int brush_id) {
     switch (brush_id) {
-    case 0: return m_sphere_sampler;
-    case 1: return m_cube_sampler;
+    case 0: return m_cube_sampler;
+    case 1: return m_sphere_sampler;
     default:
         throw invalid_argument("No sampler for given brush_id="
                                + to_string(brush_id));
