@@ -125,13 +125,18 @@ float4 raymarch(read_only image3d_t volume,
         float4 s = volume_sdf(volume, chunk_origin, &p);
 
         if (s.w <= TOLERANCE) {
+            const float3 sun = normalize((float3)(1,1,1));
             float3 normal = s.xyz;
-            float3 color = normal;
+#ifdef DEBUG_MARCHING_STEPS
+            float3 color = (float3)(i, i, i) / (float)MAX_STEPS;
+#else
+            float3 color = dot(normal, sun) * (float3)(1, 1, 1);
+#endif
             return (float4)(color.x, color.y, color.z, z);
         }
         z += s.w;
     }
-    return (float4)(0.3f, 0.3f, 0.3f, camera->far);
+    return (float4)(1.f, 1.f, 1.f, camera->far);
 }
 
 kernel void initialize(write_only image2d_t output,
@@ -161,10 +166,13 @@ kernel void raymarcher(write_only image2d_t output,
         if (tmin < camera.far && tmin / camera.far < depth) {
             float4 current = raymarch(volume, &camera, &chunk_origin, &r,
                                       max(0.25f, (float)(tmin - VM_VOXEL_SIZE)));
+#ifdef DEBUG_MARCHING_STEPS
+            result = current;
+#else
             if (current.w < result.w) {
                 result = current;
             }
-
+#endif
             write_imagef(output, (int2)(u, v),
                          (float4)(result.x, result.y, result.z, 1.0f));
 
