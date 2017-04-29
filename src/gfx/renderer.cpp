@@ -35,11 +35,11 @@ void Renderer::init_buffer() {
         4096
     });
 
-    glCreateVertexArrays(1, &m_raymarcher_vao);
-    assert(m_raymarcher_vao > 0);
-    glEnableVertexArrayAttrib(m_raymarcher_vao, 0);
-    glVertexArrayAttribFormat(m_raymarcher_vao, 0, 2, GL_FLOAT, GL_FALSE, 0u);
-    glVertexArrayAttribBinding(m_raymarcher_vao, 0, 0);
+    glCreateVertexArrays(1, &m_triangle_vao);
+    assert(m_triangle_vao > 0);
+    glEnableVertexArrayAttrib(m_triangle_vao, 0);
+    glVertexArrayAttribFormat(m_triangle_vao, 0, 2, GL_FLOAT, GL_FALSE, 0u);
+    glVertexArrayAttribBinding(m_triangle_vao, 0, 0);
 
     glCreateVertexArrays(1, &m_shape_vao);
     glEnableVertexArrayAttrib(m_shape_vao, 0);
@@ -48,7 +48,6 @@ void Renderer::init_buffer() {
 }
 
 void Renderer::init_shaders() {
-#warning "TODO: remove old raymarcher shaders"
     m_tex_drawer = Program{};
     m_tex_drawer.set_shader_from_file(GL_VERTEX_SHADER,
                                       "shaders/texture-vs.glsl");
@@ -101,7 +100,7 @@ void Renderer::init_textures() {
 
 Renderer::Renderer(shared_ptr<ComputeContext> ctx)
     : m_compute_ctx(ctx)
-    , m_raymarcher_vao(GL_NONE)
+    , m_triangle_vao(GL_NONE)
     , m_shape_vao(GL_NONE)
     , m_width(0)
     , m_height(0) {
@@ -194,7 +193,7 @@ void Renderer::render(const Scene &scene) {
     // Draw frame on the screen
     glClearColor(0.3, 0.3, 0.3, 1.0);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-    glBindVertexArray(m_raymarcher_vao);
+    glBindVertexArray(m_triangle_vao);
     glBindVertexBuffer(0, m_triangle_vbo->id(), 0, sizeof(vec2));
 
     glUseProgram(m_tex_drawer.id());

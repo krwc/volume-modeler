@@ -34,8 +34,7 @@ class Renderer {
     compute::image2d m_depth;
     compute::opengl_texture m_cl_frame;
 
-#warning "TODO: This is not a raymarcher's VAO"
-    GLuint m_raymarcher_vao;
+    GLuint m_triangle_vao;
     GLuint m_shape_vao;
     int m_width;
     int m_height;
