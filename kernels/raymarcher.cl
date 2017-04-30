@@ -125,12 +125,11 @@ float4 raymarch(read_only image3d_t volume,
         float4 s = volume_sdf(volume, chunk_origin, &p);
 
         if (s.w <= TOLERANCE) {
-            const float3 sun = normalize((float3)(1,1,1));
             float3 normal = s.xyz;
 #ifdef DEBUG_MARCHING_STEPS
             float3 color = (float3)(i, i, i) / (float)MAX_STEPS;
 #else
-            float3 color = dot(normal, sun) * (float3)(1, 1, 1);
+            float3 color = normal;
 #endif
             return (float4)(color.x, color.y, color.z, z);
         }

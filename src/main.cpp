@@ -73,6 +73,17 @@ static void init() {
     g_renderer = make_unique<vm::Renderer>(g_compute_ctx);
     g_renderer->resize(g_window_width, g_window_height);
     glfwSetScrollCallback(g_window, handle_scroll);
+#if 0
+    vm::BrushCube cube;
+    const int size = 40;
+    for (int z = -size/2; z < size/2; ++z) {
+        for (int x = -size/2; x < size/2; ++x) {
+            const glm::vec3 origin(x, -2, z);
+            cube.set_origin(origin);
+            g_scene->add(cube);
+        }
+    }
+#endif
 }
 
 static void handle_resize() {
@@ -201,7 +212,9 @@ static void handle_events() {
 
     vm::Brush *brush = get_current_brush();
     const mat3 dir = inverse(mat3(g_camera->get_view()));
-    const vec3 origin = g_camera->get_origin() - dir * vec3(0, 0, 3.0f);
+    const vec3 origin =
+            g_camera->get_origin()
+            - dir * vec3(0, 0, std::max(2.0f, 1.0f + brush->get_scale().z));
     brush->set_origin(origin);
 }
 
