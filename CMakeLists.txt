@@ -27,6 +27,19 @@ add_subdirectory(src)
 
 file(GLOB_RECURSE CPP_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp)
 file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/shaders DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
+file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/textures DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
+
+include(ExternalProject)
+set(STB_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/third_party/stb/")
+ExternalProject_Add(stb
+    SOURCE_DIR "${STB_SOURCE_DIR}"
+    GIT_SUBMODULES "stb"
+    INSTALL_COMMAND ""
+    CONFIGURE_COMMAND ""
+    BUILD_COMMAND ""
+)
+set(STB_INCLUDES ${STB_SOURCE_DIR})
+include_directories(third_party)
 
 file(GLOB_RECURSE CL_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/kernels/*)
 foreach(filename ${CL_SOURCES})

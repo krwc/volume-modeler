@@ -43,6 +43,16 @@ static unique_ptr<vm::Brush> g_brushes[] = {
 static int g_brush_id;
 static vec3 g_brush_scale(1,1,1);
 
+static int g_material_id;
+static const vector<string> g_material_array {
+    "textures/brick.jpg",
+    "textures/brick1.jpg",
+    "textures/grass.jpg",
+    "textures/rock.jpg",
+    "textures/stones.jpg",
+    "textures/wood.jpg"
+};
+
 static void handle_scroll(GLFWwindow *window, double xoffset, double yoffset);
 
 static void init() {
@@ -70,7 +80,7 @@ static void init() {
     g_scene = make_unique<vm::Scene>(g_compute_ctx);
     g_scene->set_camera(g_camera);
 
-    g_renderer = make_unique<vm::Renderer>(g_compute_ctx);
+    g_renderer = make_unique<vm::Renderer>(g_compute_ctx, g_material_array);
     g_renderer->resize(g_window_width, g_window_height);
     glfwSetScrollCallback(g_window, handle_scroll);
 #if 0
@@ -155,12 +165,14 @@ static void handle_scroll(GLFWwindow *window, double xoffset, double yoffset) {
     (void) xoffset;
     if (glfwGetKey(g_window, GLFW_KEY_X)) {
         g_brush_scale.x += 2*VM_VOXEL_SIZE * yoffset;
-    }
-    if (glfwGetKey(g_window, GLFW_KEY_Y)) {
+    } else if (glfwGetKey(g_window, GLFW_KEY_Y)) {
         g_brush_scale.y += 2*VM_VOXEL_SIZE * yoffset;
-    }
-    if (glfwGetKey(g_window, GLFW_KEY_Z)) {
+    } else if (glfwGetKey(g_window, GLFW_KEY_Z)) {
         g_brush_scale.z += 2*VM_VOXEL_SIZE * yoffset;
+    } else {
+        g_material_id += yoffset;
+        g_material_id = std::max(0, std::min(g_material_id, int(g_material_array.size())-1));
+        get_current_brush()->set_material(g_material_id);
     }
     const float min_scale = 3.5 * VM_VOXEL_SIZE;
     g_brush_scale = max(vec3(min_scale, min_scale, min_scale), g_brush_scale);

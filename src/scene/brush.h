@@ -17,6 +17,7 @@ public:
         : m_origin()
         , m_rotation(1.0f)
         , m_scale(1, 1, 1)
+        , m_material(0)
     {}
 
     virtual ~Brush() {}
@@ -60,13 +61,23 @@ public:
         m_scale = scale;
     }
 
+    inline void set_material(int material) {
+        m_material = material;
+    }
+
     /** Obtains an unique identifier of the brush (to pass for the shader) */
     virtual int id() const = 0;
+
+    /** Obtains material used for this brush */
+    inline int material() const {
+        return m_material;
+    }
 
 private:
     glm::vec3 m_origin;
     glm::mat3 m_rotation;
     glm::vec3 m_scale;
+    int m_material;
 };
 
 } // namespace vm

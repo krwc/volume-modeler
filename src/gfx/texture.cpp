@@ -75,4 +75,30 @@ void Texture3d::fill(const void *buffer, GLenum format, GLenum type) {
                         get_depth(), format, type, buffer);
 }
 
+
+TextureArray::TextureArray(const TextureArrayDesc &desc)
+    : m_id(GL_NONE)
+    , m_desc(desc) {
+    glCreateTextures(GL_TEXTURE_2D_ARRAY, 1, &m_id);
+    assert(m_id > 0);
+
+    GLint current_texture = GL_NONE;
+    glGetIntegerv(GL_TEXTURE_2D_ARRAY, &current_texture);
+    glBindTexture(GL_TEXTURE_2D_ARRAY, m_id);
+    glTexImage3D(GL_TEXTURE_2D_ARRAY, 0, desc.internal_format, desc.width,
+                 desc.height, desc.layers, 0, GL_RGBA, GL_FLOAT, nullptr);
+    glBindTexture(GL_TEXTURE_2D_ARRAY, current_texture);
+    fprintf(stderr, "Created array of %d textures of size %dx%d each %u\n",
+            m_desc.layers, m_desc.width, m_desc.height, m_id);
+}
+
+TextureArray::~TextureArray() {
+    glDeleteTextures(1, &m_id);
+}
+
+void TextureArray::fill(int layer, const void *buffer, GLenum format, GLenum type) {
+    glTextureSubImage3D(m_id, 0, 0, 0, layer, m_desc.width, m_desc.height, 1,
+                        format, type, buffer);
+}
+
 }

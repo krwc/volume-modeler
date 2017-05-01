@@ -100,6 +100,47 @@ public:
     void fill(const void *buffer, GLenum format, GLenum type);
 };
 
+struct TextureArrayDesc {
+    int width;
+    int height;
+    int layers;
+    GLenum internal_format;
+};
+
+class TextureArray : public Texture {
+    GLuint m_id;
+    TextureArrayDesc m_desc;
+
+public:
+    TextureArray(const TextureArray &) = delete;
+    TextureArray &operator=(const TextureArray &) = delete;
+
+    TextureArray(const TextureArrayDesc &desc);
+    ~TextureArray();
+
+    virtual int get_width() const {
+        return m_desc.width;
+    }
+
+    virtual int get_height() const {
+        return m_desc.height;
+    }
+
+    virtual int get_depth() const {
+        return m_desc.layers;
+    }
+
+    virtual GLenum get_type() const {
+        return GL_TEXTURE_2D_ARRAY;
+    }
+
+    virtual GLuint id() const {
+        return m_id;
+    }
+
+    void fill(int layer, const void *buffer, GLenum format, GLenum type);
+};
+
 } // namespace vm
 
 #endif

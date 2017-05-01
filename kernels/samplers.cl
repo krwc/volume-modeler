@@ -40,26 +40,31 @@ float3 get_position(int x, int y, int z, float3 chunk_origin) {
         const int x = get_global_id(0);                                      \
         const int y = get_global_id(1);                                      \
         const int z = get_global_id(2);                                      \
-        const float old_sample =                                             \
-                read_imagef(input, nearest_sampler, (int4)(x, y, z, 0)).x;   \
+        const float2 old_sample =                                            \
+                read_imagef(input, nearest_sampler, (int4)(x, y, z, 0)).xy;  \
                                                                              \
         const float3 p = get_position(x, y, z, chunk_origin) - brush_origin; \
         const float3 v = mul_mat3_vec3(brush_rotation, p);                   \
                                                                              \
         float new_sample = sdf_function(v, brush_scale);                     \
+        int new_material = material_id;                                      \
         if (operation_type == 0) {                                           \
-            new_sample = min(new_sample, old_sample);                        \
+            if (new_sample >= old_sample.x) {                                \
+                new_sample = old_sample.x;                                   \
+                new_material = old_sample.y;                                 \
+            }                                                                \
         } else {                                                             \
-            new_sample = max(-new_sample, old_sample);                       \
+            new_sample = max(-new_sample, old_sample.x);                     \
+            new_material = old_sample.y;                                     \
         }                                                                    \
         write_imagef(output, (int4)(x, y, z, 0),                             \
-                     (float4)(new_sample, new_sample, new_sample,            \
-                              new_sample));                                  \
+                     (float4)(new_sample, new_material, 0, 0));              \
     } while (0)
 
 kernel void sample_sphere(read_only image3d_t input,
                           write_only image3d_t output,
                           int operation_type,
+                          int material_id,
                           float3 chunk_origin,
                           float3 brush_origin,
                           float3 brush_scale,
@@ -70,6 +75,7 @@ kernel void sample_sphere(read_only image3d_t input,
 kernel void sample_cube(read_only image3d_t input,
                         write_only image3d_t output,
                         int operation_type,
+                        int material_id,
                         float3 chunk_origin,
                         float3 brush_origin,
                         float3 brush_scale,

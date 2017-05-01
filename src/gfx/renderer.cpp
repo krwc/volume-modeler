@@ -1,5 +1,7 @@
 #include "config.h"
+
 #include "renderer.h"
+#include "image.h"
 
 #include "scene/scene.h"
 
@@ -8,6 +10,7 @@
 #include <glm/glm.hpp>
 #include <iostream>
 #include <sstream>
+#include <set>
 
 namespace vm {
 using namespace glm;
@@ -50,6 +53,8 @@ void Renderer::init_shaders() {
                                       "shaders/texture-vs.glsl");
     m_tex_drawer.set_shader_from_file(GL_FRAGMENT_SHADER,
                                       "shaders/texture-fs.glsl");
+    m_tex_drawer.define("SCREEN_WIDTH", to_string(m_width));
+    m_tex_drawer.define("SCREEN_HEIGHT", to_string(m_height));
     m_tex_drawer.compile();
     m_tex_drawer.link();
 
@@ -82,7 +87,7 @@ void Renderer::init_kernels() {
 
 void Renderer::init_textures() {
     m_frame =
-            make_unique<Texture2d>(TextureDesc2d{ m_width, m_height, GL_RGBA });
+            make_unique<Texture2d>(TextureDesc2d{ m_width, m_height, GL_RGBA16F });
     m_frame->set_parameter(GL_TEXTURE_MIN_FILTER, GL_NEAREST);
     m_frame->set_parameter(GL_TEXTURE_MAG_FILTER, GL_NEAREST);
     m_frame->clear(0,0,0,0);
@@ -99,7 +104,43 @@ void Renderer::init_textures() {
                                          0, m_depth->id());
 }
 
-Renderer::Renderer(shared_ptr<ComputeContext> ctx)
+void Renderer::init_materials(const vector<string> &materials) {
+    set<pair<int, int>> extents;
+    int layers = 0;
+    for (const string &material : materials) {
+        auto img = Image(material);
+        ++layers;
+        extents.emplace(img.width, img.height);
+    }
+
+    if (extents.size() > 1) {
+        throw logic_error("All material textures must have same size.");
+    } else if (extents.size() == 0) {
+        fprintf(stderr, "WARNING: no materials found");
+        return;
+    }
+
+    m_material_array = make_unique<TextureArray>(TextureArrayDesc{
+        extents.begin()->first,
+        extents.begin()->second,
+        layers,
+        GL_RGBA
+    });
+    m_material_array->set_parameter(GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+    m_material_array->set_parameter(GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+    int current_layer = 0;
+    for (const string &material : materials) {
+        auto img = Image(material);
+        fprintf(stderr, "Loading material %s\n", material.c_str());
+        m_material_array->fill(current_layer++, img.pixels, GL_RGB,
+                               GL_UNSIGNED_BYTE);
+    }
+    m_material_array->generate_mipmaps();
+}
+
+Renderer::Renderer(shared_ptr<ComputeContext> ctx,
+                   const vector<string> &materials)
     : m_compute_ctx(ctx)
     , m_triangle_vao()
     , m_shape_vao()
@@ -108,6 +149,7 @@ Renderer::Renderer(shared_ptr<ComputeContext> ctx)
     init_buffer();
     init_shaders();
     init_kernels();
+    init_materials(materials);
 
     glEnable(GL_SCISSOR_TEST);
     glEnable(GL_CULL_FACE);
@@ -134,8 +176,10 @@ void Renderer::render(const Scene &scene) {
         cl_float far;
     } camera_repr;
 
-    camera_repr.inv_proj = Mat4Repr(inverse(camera->get_proj()));
-    camera_repr.inv_view = Mat4Repr(inverse(camera->get_view()));
+    const mat4 inv_proj = inverse(camera->get_proj());
+    const mat4 inv_view = inverse(camera->get_view());
+    camera_repr.inv_proj = Mat4Repr(inv_proj);
+    camera_repr.inv_view = Mat4Repr(inv_view);
     camera_repr.origin = Vec3Repr(camera->get_origin());
     camera_repr.near = camera->get_near_plane();
     camera_repr.far = camera->get_far_plane();
@@ -158,7 +202,7 @@ void Renderer::render(const Scene &scene) {
 
     // Clear frame
     m_initializer.set_arg(0, m_cl_frame);
-    m_initializer.set_arg(1, vec4(0.3, 0.3, 0.3, 1));
+    m_initializer.set_arg(1, vec4(0.3, 0.3, 0.3, -1));
     m_compute_ctx->queue.enqueue_nd_range_kernel(
             m_initializer, 2, nullptr, compute::dim(m_width, m_height).data(),
             nullptr);
@@ -204,17 +248,16 @@ void Renderer::render(const Scene &scene) {
     glBindVertexBuffer(0, m_triangle_vbo->id(), 0, sizeof(vec2));
 
     glUseProgram(m_tex_drawer.id());
+    m_tex_drawer.set_constant("inv_proj", inv_proj);
+    m_tex_drawer.set_constant("inv_view", inv_view);
+    m_tex_drawer.set_constant("camera_far", camera->get_far_plane());
+    m_tex_drawer.set_constant("camera_origin", camera->get_origin());
     glBindTextureUnit(0, m_frame->id());
     glBindTextureUnit(1, m_depth->id());
-    glDrawArrays(GL_TRIANGLES, 0, 6);
-
-#if 0
-    for (const Scene::Chunk *chunk : scene.get_chunks_to_render()) {
-        const vec3 c = chunk->origin;
-        const vec3 h = vec3(0.5f,0.5f,0.5f) * float(VM_VOXEL_SIZE * (VM_CHUNK_SIZE+VM_CHUNK_BORDER));
-        render(camera, Box{c - h, c + h, vec4(0.6, 0.4, 0.1, 0.5)});
+    if (m_material_array) {
+        glBindTextureUnit(2, m_material_array->id());
     }
-#endif
+    glDrawArrays(GL_TRIANGLES, 0, 6);
 }
 
 void Renderer::render(const shared_ptr<Camera> &camera, const Box &box) {

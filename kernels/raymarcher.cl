@@ -76,6 +76,14 @@ float volume_sample(read_only image3d_t volume, const float3 *chunk_origin, floa
     return read_imagef(volume, bilinear_sampler, (float4)(q.x, q.y, q.z, 0.0f)).x;
 }
 
+int volume_material(read_only image3d_t volume, const float3 *chunk_origin, float3 p) {
+    const float3 q =
+            (p - *chunk_origin) / (float) ((VM_CHUNK_SIZE + VM_CHUNK_BORDER)
+                                           * VM_VOXEL_SIZE)
+            + 0.5f;
+    return read_imagef(volume, nearest_sampler, (float4)(q.x, q.y, q.z, 0.0f)).y;
+}
+
 #define TOLERANCE (0.05f * VM_VOXEL_SIZE)
 
 float4 volume_sdf(read_only image3d_t volume,
@@ -114,13 +122,15 @@ float4 raymarch(read_only image3d_t volume,
                 const Camera *camera,
                 const float3 *chunk_origin,
                 const float3 *r,
-                float z) {
+                float z,
+                int *out_material_id) {
     float3 current = z * (*r) + camera->origin;
     if (volume_sdf(volume, chunk_origin, &current).w <= TOLERANCE) {
         return (float4)(0.3f, 0.3f, 0.3f, z);
     }
 
     for (int i = 0; i < MAX_STEPS; ++i) {
+        int material = -1;
         float3 p = camera->origin + z * (*r);
         float4 s = volume_sdf(volume, chunk_origin, &p);
 
@@ -131,6 +141,7 @@ float4 raymarch(read_only image3d_t volume,
 #else
             float3 color = normal;
 #endif
+            *out_material_id = volume_material(volume, chunk_origin, p);
             return (float4)(color.x, color.y, color.z, z);
         }
         z += s.w;
@@ -163,8 +174,11 @@ kernel void raymarcher(write_only image2d_t output,
 
     if (is_ray_hitting_volume(chunk_origin, camera.origin, inv_r, &tmin, &tmax)) {
         if (tmin < camera.far && tmin / camera.far < depth) {
-            float4 current = raymarch(volume, &camera, &chunk_origin, &r,
-                                      max(0.25f, (float)(tmin - VM_VOXEL_SIZE)));
+            int material_id = -1;
+            float4 current =
+                    raymarch(volume, &camera, &chunk_origin, &r,
+                             max(0.25f, (float) (tmin - VM_VOXEL_SIZE)),
+                             &material_id);
 #ifdef DEBUG_MARCHING_STEPS
             result = current;
 #else
@@ -173,7 +187,7 @@ kernel void raymarcher(write_only image2d_t output,
             }
 #endif
             write_imagef(output, (int2)(u, v),
-                         (float4)(result.x, result.y, result.z, 1.0f));
+                         (float4)(result.x, result.y, result.z, material_id));
 
             result.w /= camera.far;
             write_imagef(out_depth, (int2)(u, v),

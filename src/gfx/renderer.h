@@ -78,6 +78,7 @@ class Renderer {
     std::shared_ptr<ComputeContext> m_compute_ctx;
     std::unique_ptr<Texture2d> m_frame;
     std::unique_ptr<Texture2d> m_depth;
+    std::unique_ptr<TextureArray> m_material_array;
 
     compute::kernel m_raymarcher;
     compute::kernel m_initializer;
@@ -93,9 +94,11 @@ class Renderer {
     void init_shaders();
     void init_kernels();
     void init_textures();
+    void init_materials(const std::vector<std::string> &);
 
 public:
-    Renderer(std::shared_ptr<ComputeContext> ctx);
+    Renderer(std::shared_ptr<ComputeContext> ctx,
+             const std::vector<std::string> &materials);
     void render(const Scene &scene);
     void render(const std::shared_ptr<Camera> &camera, const Box &box);
     void resize(int screen_width, int screen_height);

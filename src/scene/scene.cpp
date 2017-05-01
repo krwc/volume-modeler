@@ -21,7 +21,7 @@ Scene::Scene(shared_ptr<ComputeContext> compute_ctx)
     : m_camera()
     , m_compute_ctx(compute_ctx)
     , m_chunks()
-    , m_volume_format(compute::image_format::r, compute::image_format::float16) {
+    , m_volume_format(compute::image_format::rg, compute::image_format::float16) {
     auto program =
             compute::program::create_with_source_file("kernels/samplers.cl",
                                                       m_compute_ctx->context);
@@ -105,9 +105,10 @@ void Scene::sample(const Brush &brush, Operation op) {
 
     compute::kernel &sampler = get_sampler(brush.id());
     sampler.set_arg(2, static_cast<int>(op));
-    sampler.set_arg(4, brush.get_origin());
-    sampler.set_arg(5, 0.5f * brush.get_scale());
-    sampler.set_arg(6, brush.get_rotation());
+    sampler.set_arg(3, brush.material());
+    sampler.set_arg(5, brush.get_origin());
+    sampler.set_arg(6, 0.5f * brush.get_scale());
+    sampler.set_arg(7, brush.get_rotation());
 
     for (int z = region_min.z; z <= region_max.z; ++z) {
     for (int y = region_min.y; y <= region_max.y; ++y) {
@@ -126,7 +127,7 @@ void Scene::sample(const Brush &brush, Operation op) {
             node.coord = ivec3(x, y, z);
 
             m_initializer.set_arg(0, *node.volume);
-            m_initializer.set_arg(1, vec4(1e5, 1e5, 1e5, 1e5));
+            m_initializer.set_arg(1, vec4(1e5, -1, 0, 0));
             m_compute_ctx->queue.enqueue_nd_range_kernel(
                     m_initializer, 3, nullptr,
                     compute::dim(VM_CHUNK_SIZE + VM_CHUNK_BORDER,
@@ -141,7 +142,7 @@ void Scene::sample(const Brush &brush, Operation op) {
         // but it works anyway on every device I tested against, so... why bother?
         sampler.set_arg(0, *node.volume);
         sampler.set_arg(1, *node.volume);
-        sampler.set_arg(3, node.origin);
+        sampler.set_arg(4, node.origin);
         m_compute_ctx->queue.enqueue_nd_range_kernel(
                 sampler, 3, nullptr,
                 compute::dim(VM_CHUNK_SIZE + VM_CHUNK_BORDER,
@@ -164,7 +165,7 @@ void Scene::sub(const Brush &brush) {
 
 void Scene::persist_chunk(ostream &out, const Scene::Chunk &chunk) const {
     const size_t N = VM_CHUNK_SIZE + VM_CHUNK_BORDER;
-    vector<int16_t> buffer(N*N*N);
+    vector<int16_t> buffer(2*N*N*N);
     m_compute_ctx->queue.enqueue_read_image<3>(*chunk.volume,
                                                compute::dim(0, 0, 0),
                                                compute::dim(N, N, N),
@@ -181,7 +182,7 @@ void Scene::persist_chunk(ostream &out, const Scene::Chunk &chunk) const {
 
 void Scene::restore_chunk(istream &in, Scene::Chunk &chunk) {
     const size_t N = VM_CHUNK_SIZE + VM_CHUNK_BORDER;
-    vector<int16_t> buffer(N*N*N);
+    vector<int16_t> buffer(2*N*N*N);
 
     for (size_t i = 0; i < buffer.size(); ++i) {
         in >= buffer[i];
