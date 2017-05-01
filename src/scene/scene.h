@@ -1,9 +1,10 @@
 #ifndef VM_SCENE_SCENE_H
 #define VM_SCENE_SCENE_H
-#include <memory>
-#include <vector>
-#include <unordered_map>
+#include <array>
 #include <iostream>
+#include <memory>
+#include <unordered_map>
+#include <vector>
 
 #include "scene/camera.h"
 #include "scene/brush.h"
@@ -29,8 +30,9 @@ class Scene {
     std::unordered_map<size_t, Chunk> m_chunks;
     const compute::image_format m_volume_format;
     compute::kernel m_initializer;
-    compute::kernel m_sphere_sampler;
-    compute::kernel m_cube_sampler;
+    compute::kernel m_downsampler;
+    /* Samplers of built-in SDF functions */
+    std::array<compute::kernel, 2> m_sdf_samplers;
 
     void persist_chunk(std::ostream &out, const Chunk &chunk) const;
     void restore_chunk(std::istream &in, Chunk &chunk);
@@ -62,11 +64,11 @@ class Scene {
         Add = 0,
         Sub = 1
     };
+
+    compute::image3d create_volume(int N) const;
+
     /** Performs sampling of the brush */
     void sample(const Brush &brush, Operation op);
-
-    /** Returns an appropriate sampler for given brush type */
-    compute::kernel &get_sampler(int brush_id);
 
 public:
     Scene(std::shared_ptr<ComputeContext> compute_ctx);

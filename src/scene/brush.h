@@ -13,6 +13,11 @@ namespace vm {
  */
 class Brush {
 public:
+    enum Id {
+        Cube,
+        Ball
+    };
+
     Brush()
         : m_origin()
         , m_rotation(1.0f)

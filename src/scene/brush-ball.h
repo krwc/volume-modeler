@@ -12,7 +12,7 @@ public:
     }
 
     virtual int id() const {
-        return 1;
+        return Brush::Id::Ball;
     }
 };
 

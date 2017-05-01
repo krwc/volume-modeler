@@ -26,9 +26,10 @@ Scene::Scene(shared_ptr<ComputeContext> compute_ctx)
             compute::program::create_with_source_file("kernels/samplers.cl",
                                                       m_compute_ctx->context);
     program.build();
-    m_sphere_sampler = program.create_kernel("sample_sphere");
-    m_cube_sampler = program.create_kernel("sample_cube");
+    m_sdf_samplers[Brush::Id::Cube] = program.create_kernel("sample_cube");
+    m_sdf_samplers[Brush::Id::Ball] = program.create_kernel("sample_ball");
     m_initializer = program.create_kernel("initialize");
+    m_downsampler = program.create_kernel("downsample");
 }
 
 vector<const Scene::Chunk *> Scene::get_chunks_to_render() const {
@@ -81,14 +82,8 @@ vec3 Scene::get_chunk_origin(int x, int y, int z) const {
     return vec3(CHUNK_WORLD_SIZE * dvec3(x, y, z));
 }
 
-compute::kernel &Scene::get_sampler(int brush_id) {
-    switch (brush_id) {
-    case 0: return m_cube_sampler;
-    case 1: return m_sphere_sampler;
-    default:
-        throw invalid_argument("No sampler for given brush_id="
-                               + to_string(brush_id));
-    }
+compute::image3d Scene::create_volume(int N) const {
+    return compute::image3d(m_compute_ctx->context, N, N, N, m_volume_format);
 }
 
 
@@ -96,19 +91,22 @@ void Scene::sample(const Brush &brush, Operation op) {
     ivec3 region_min, region_max;
     get_affected_region(region_min, region_max, brush.get_aabb());
 
+    /*
     auto bb = brush.get_aabb();
     fprintf(stderr, "AABBmin (%.3f, %.3f, %.3f), AABBmax (%.3f, %.3f, %.3f)\n",
             bb.min.x, bb.min.y, bb.min.z, bb.max.x, bb.max.y, bb.max.z);
     fprintf(stderr, "Affected region (%d,%d,%d)x(%d,%d,%d)\n",
             region_min.x, region_min.y, region_min.z,
             region_max.x, region_max.y, region_max.z);
-
-    compute::kernel &sampler = get_sampler(brush.id());
+    */
+    compute::kernel &sampler = m_sdf_samplers.at(brush.id());
     sampler.set_arg(2, static_cast<int>(op));
     sampler.set_arg(3, brush.material());
     sampler.set_arg(5, brush.get_origin());
     sampler.set_arg(6, 0.5f * brush.get_scale());
     sampler.set_arg(7, brush.get_rotation());
+
+    const int N = VM_CHUNK_SIZE + VM_CHUNK_BORDER;
 
     for (int z = region_min.z; z <= region_max.z; ++z) {
     for (int y = region_min.y; y <= region_max.y; ++y) {
@@ -117,24 +115,20 @@ void Scene::sample(const Brush &brush, Operation op) {
         auto &&node = m_chunks[current];
 
         if (!node.volume) {
-            node.volume = move(compute::image3d(
-                    m_compute_ctx->context,
-                    VM_CHUNK_SIZE + VM_CHUNK_BORDER,
-                    VM_CHUNK_SIZE + VM_CHUNK_BORDER,
-                    VM_CHUNK_SIZE + VM_CHUNK_BORDER,
-                    m_volume_format));
+            node.volume = move(create_volume(N));
             node.origin = get_chunk_origin(x, y, z);
             node.coord = ivec3(x, y, z);
 
             m_initializer.set_arg(0, *node.volume);
+            /* Initialize using (isovalue, material) = (1e5, -1) */
             m_initializer.set_arg(1, vec4(1e5, -1, 0, 0));
             m_compute_ctx->queue.enqueue_nd_range_kernel(
-                    m_initializer, 3, nullptr,
-                    compute::dim(VM_CHUNK_SIZE + VM_CHUNK_BORDER,
-                                 VM_CHUNK_SIZE + VM_CHUNK_BORDER,
-                                 VM_CHUNK_SIZE + VM_CHUNK_BORDER)
-                            .data(),
+                    m_initializer,
+                    3,
+                    nullptr,
+                    compute::dim(N, N, N).data(),
                     nullptr);
+
             fprintf(stderr, "Created node (%d, %d, %d), number of nodes: %zu\n",
                     x, y, z, m_chunks.size());
         }
@@ -144,11 +138,10 @@ void Scene::sample(const Brush &brush, Operation op) {
         sampler.set_arg(1, *node.volume);
         sampler.set_arg(4, node.origin);
         m_compute_ctx->queue.enqueue_nd_range_kernel(
-                sampler, 3, nullptr,
-                compute::dim(VM_CHUNK_SIZE + VM_CHUNK_BORDER,
-                             VM_CHUNK_SIZE + VM_CHUNK_BORDER,
-                             VM_CHUNK_SIZE + VM_CHUNK_BORDER)
-                        .data(),
+                sampler,
+                3,
+                nullptr,
+                compute::dim(N, N, N).data(),
                 nullptr);
         m_compute_ctx->queue.flush();
     }}}
@@ -187,9 +180,7 @@ void Scene::restore_chunk(istream &in, Scene::Chunk &chunk) {
     for (size_t i = 0; i < buffer.size(); ++i) {
         in >= buffer[i];
     }
-    chunk.volume = move(
-            compute::image3d(m_compute_ctx->context, N, N, N, m_volume_format));
-
+    chunk.volume = move(create_volume(N));
     m_compute_ctx->queue.enqueue_write_image<3>(*chunk.volume,
                                                 compute::dim(0, 0, 0),
                                                 compute::dim(N, N, N),

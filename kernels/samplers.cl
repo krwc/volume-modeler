@@ -61,14 +61,14 @@ float3 get_position(int x, int y, int z, float3 chunk_origin) {
                      (float4)(new_sample, new_material, 0, 0));              \
     } while (0)
 
-kernel void sample_sphere(read_only image3d_t input,
-                          write_only image3d_t output,
-                          int operation_type,
-                          int material_id,
-                          float3 chunk_origin,
-                          float3 brush_origin,
-                          float3 brush_scale,
-                          mat3 brush_rotation) {
+kernel void sample_ball(read_only image3d_t input,
+                        write_only image3d_t output,
+                        int operation_type,
+                        int material_id,
+                        float3 chunk_origin,
+                        float3 brush_origin,
+                        float3 brush_scale,
+                        mat3 brush_rotation) {
     SAMPLE_IMPL(ball_sdf);
 }
 
@@ -81,4 +81,32 @@ kernel void sample_cube(read_only image3d_t input,
                         float3 brush_scale,
                         mat3 brush_rotation) {
     SAMPLE_IMPL(cube_sdf);
+}
+
+const sampler_t bilinear_sampler = CLK_NORMALIZED_COORDS_TRUE
+                                   | CLK_ADDRESS_CLAMP_TO_EDGE
+                                   | CLK_FILTER_LINEAR;
+
+/** Downsamples the 3D volume texture using bilinear filtering */
+kernel void downsample(read_only image3d_t input,
+                       write_only image3d_t output,
+                       int input_size) {
+    const int u = get_global_id(0);
+    const int v = get_global_id(1);
+    const int w = get_global_id(2);
+
+    float4 value = (float4)(0, 0, 0, 0);
+    #pragma unroll
+    for (int i = 0; i < 2; ++i) {
+        for (int j = 0; j < 2; ++j) {
+            for (int k = 0; k < 2; ++k) {
+                float4 p = (float4)(2.0f * u + k + 0.5f,
+                                    2.0f * v + j + 0.5f,
+                                    2.0f * w + i + 0.5f, 0)
+                           / input_size;
+                value += read_imagef(input, bilinear_sampler, p);
+            }
+        }
+    }
+    write_imagef(output, (int4)(u, v, w, 0), 0.125f * value);
 }

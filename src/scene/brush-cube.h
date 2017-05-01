@@ -15,7 +15,7 @@ public:
     }
 
     virtual int id() const {
-        return 0;
+        return Brush::Id::Cube;
     }
 };
 
