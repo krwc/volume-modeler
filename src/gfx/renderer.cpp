@@ -106,37 +106,32 @@ void Renderer::init_textures() {
 
 void Renderer::init_materials(const vector<string> &materials) {
     set<pair<int, int>> extents;
-    int layers = 0;
-    for (const string &material : materials) {
-        auto img = Image(material);
-        ++layers;
+    for (size_t layer = 0; layer < materials.size(); ++layer) {
+        fprintf(stderr, "Loading material %s\n", materials[layer].c_str());
+
+        Image img(materials[layer]);
         extents.emplace(img.width, img.height);
-    }
 
-    if (extents.size() > 1) {
-        throw logic_error("All material textures must have same size.");
-    } else if (extents.size() == 0) {
-        fprintf(stderr, "WARNING: no materials found");
-        return;
-    }
+        if (extents.size() > 1) {
+            throw logic_error("All material textures must have same size.");
+        }
 
-    m_material_array = make_unique<TextureArray>(TextureArrayDesc{
-        extents.begin()->first,
-        extents.begin()->second,
-        layers,
-        GL_RGBA
-    });
-    m_material_array->set_parameter(GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
-    m_material_array->set_parameter(GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-
-    int current_layer = 0;
-    for (const string &material : materials) {
-        auto img = Image(material);
-        fprintf(stderr, "Loading material %s\n", material.c_str());
-        m_material_array->fill(current_layer++, img.pixels, GL_RGB,
-                               GL_UNSIGNED_BYTE);
+        if (!m_material_array) {
+            m_material_array = make_unique<TextureArray>(TextureArrayDesc{
+                extents.begin()->first,
+                extents.begin()->second,
+                static_cast<int>(materials.size()),
+                GL_RGBA
+            });
+            m_material_array->set_parameter(GL_TEXTURE_MIN_FILTER,
+                                            GL_LINEAR_MIPMAP_LINEAR);
+            m_material_array->set_parameter(GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        }
+        m_material_array->fill(layer, img.pixels, GL_RGB, GL_UNSIGNED_BYTE);
     }
-    m_material_array->generate_mipmaps();
+    if (m_material_array) {
+        m_material_array->generate_mipmaps();
+    }
 }
 
 Renderer::Renderer(shared_ptr<ComputeContext> ctx,
