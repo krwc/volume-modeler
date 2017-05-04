@@ -77,8 +77,6 @@ static void init() {
     g_camera->set_aspect_ratio(float(g_window_width) / g_window_height);
 
     g_compute_ctx = vm::make_compute_context();
-    g_scene = make_unique<vm::Scene>(g_compute_ctx);
-    g_scene->set_camera(g_camera);
 
     g_renderer = make_unique<vm::Renderer>(g_compute_ctx, g_material_array);
     g_renderer->resize(g_window_width, g_window_height);
@@ -144,11 +142,6 @@ static void handle_keyboard() {
         g_brush_should_rotate = true;
     } else {
         g_brush_should_rotate = false;
-    }
-    if (glfwGetKey(g_window, GLFW_KEY_F1) == GLFW_PRESS) {
-        ofstream persistence("scene.dat", ios_base::binary | ios_base::trunc);
-        persistence << *g_scene.get();
-        cerr << "Outputed scene to scene.dat" << endl;
     }
     if (glfwGetKey(g_window, GLFW_KEY_1) == GLFW_PRESS) {
         g_brush_id = 0;
@@ -272,17 +265,17 @@ static void report_frametime() {
 
 int main(int argc, char **argv) {
     if (argc > 2) {
-        cerr << "Usage: " << argv[0] << " [scene-to-restore.dat]" << endl;
+        cerr << "Usage: " << argv[0] << " [scene-persistence-dir]" << endl;
         return 1;
     }
     init();
 
+    string scene_persistence_dir = "scene";
     if (argc == 2) {
-        ifstream persistence(argv[1], ios::binary);
-        persistence >> *g_scene.get();
-        g_rotx = g_camera->get_rotation_x();
-        g_roty = g_camera->get_rotation_y();
+        scene_persistence_dir = argv[1];
     }
+    g_scene = make_unique<vm::Scene>(g_compute_ctx, g_camera,
+                                     scene_persistence_dir);
 
     while (!glfwWindowShouldClose(g_window)) {
         using namespace chrono;

@@ -1,4 +1,5 @@
 #include "config.h"
+
 #include "scene.h"
 
 #include "utils/compute-interop.h"
@@ -17,11 +18,18 @@ namespace vm {
 
 #define CHUNK_WORLD_SIZE (VM_CHUNK_SIZE * VM_VOXEL_SIZE)
 
-Scene::Scene(shared_ptr<ComputeContext> compute_ctx)
-    : m_camera()
-    , m_compute_ctx(compute_ctx)
-    , m_chunks()
-    , m_volume_format(compute::image_format::rg, compute::image_format::float16) {
+namespace {
+size_t coord_hash(const ivec3 &coord) {
+    enum { HASH_COEFF = 1024 };
+    return coord.x + HASH_COEFF * (coord.y + HASH_COEFF * coord.z);
+}
+
+size_t chunk_hash(const shared_ptr<Chunk> &chunk) {
+    return coord_hash(chunk->get_coord());
+}
+} // namespace
+
+void Scene::init_kernels() {
     auto program =
             compute::program::create_with_source_file("kernels/samplers.cl",
                                                       m_compute_ctx->context);
@@ -32,28 +40,20 @@ Scene::Scene(shared_ptr<ComputeContext> compute_ctx)
     m_downsampler = program.create_kernel("downsample");
 }
 
-vector<const Scene::Chunk *> Scene::get_chunks_to_render() const {
-    vector<const Scene::Chunk *> chunks(m_chunks.size());
-    size_t index = 0;
-    for (const auto &chunk : m_chunks) {
-        chunks[index++] = &chunk.second;
+void Scene::init_persisted_chunks() {
+    for (const ivec3 &coord : m_archive.get_chunk_coords()) {
+        auto chunk = m_chunks.emplace(coord_hash(coord),
+                                      make_shared<Chunk>(coord,
+                                                         m_compute_ctx->context,
+                                                         m_volume_format))
+                             .first->second;
+        m_archive.restore(chunk);
     }
-
-    vec3 camera_origin = m_camera->get_origin();
-    auto chunk_comparator = [camera_origin](const Scene::Chunk *&lhs,
-                                            const Scene::Chunk *&rhs) {
-        return distance2(camera_origin, lhs->origin)
-               < distance2(camera_origin, rhs->origin);
-    };
-
-    sort(chunks.begin(), chunks.end(), chunk_comparator);
-    /* TODO: frustum culling */
-    return chunks;
 }
 
-void Scene::get_affected_region(ivec3 &out_min,
-                                ivec3 &out_max,
-                                const AABB &aabb) const {
+void Scene::get_covered_region(const AABB &aabb,
+                               ivec3 &out_min,
+                               ivec3 &out_max) {
     const vec3 min = aabb.min + float(0.5 * CHUNK_WORLD_SIZE);
     const vec3 max = aabb.max - float(0.5 * CHUNK_WORLD_SIZE);
     out_min = ivec3(INT_MAX, INT_MAX, INT_MAX);
@@ -65,40 +65,41 @@ void Scene::get_affected_region(ivec3 &out_min,
     }
 }
 
-size_t Scene::get_coord_hash(int x, int y, int z) {
-    enum { HASH_COEFF = 1024 };
-    return x + HASH_COEFF * (y + HASH_COEFF * z);
+Scene::Scene(const shared_ptr<ComputeContext> &compute_ctx,
+             const shared_ptr<Camera> &camera,
+             const string &scene_directory)
+        : m_compute_ctx(compute_ctx),
+          m_camera(camera),
+          m_chunks(),
+          m_volume_format(compute::image_format::rg,
+                          compute::image_format::float16),
+          m_archive(scene_directory,
+                    compute_ctx,
+                    m_volume_format) {
+    init_kernels();
+    init_persisted_chunks();
 }
 
-Scene::Chunk *Scene::get_chunk_ptr(int x, int y, int z) {
-    auto node = m_chunks.find(get_coord_hash(x, y, z));
-    if (node != m_chunks.end()) {
-        return &node->second;
-    }
-    return nullptr;
+vec3 Scene::get_chunk_origin(const ivec3 &coord) {
+    return vec3(CHUNK_WORLD_SIZE * dvec3(coord));
 }
 
-vec3 Scene::get_chunk_origin(int x, int y, int z) const {
-    return vec3(CHUNK_WORLD_SIZE * dvec3(x, y, z));
+void Scene::init_chunk(const shared_ptr<Chunk> &chunk) {
+    const size_t N = VM_CHUNK_SIZE + VM_CHUNK_BORDER;
+    // Initialize the volume using isovalue = 1e5 and material index -1,
+    // which is an air representation
+    m_initializer.set_arg(0, chunk->get_volume());
+    m_initializer.set_arg(1, vec4(1e5, -1, 0, 0));
+    m_compute_ctx->queue.enqueue_nd_range_kernel(
+            m_initializer, 3, nullptr, compute::dim(N, N, N).data(), nullptr);
 }
-
-compute::image3d Scene::create_volume(int N) const {
-    return compute::image3d(m_compute_ctx->context, N, N, N, m_volume_format);
-}
-
 
 void Scene::sample(const Brush &brush, Operation op) {
-    ivec3 region_min, region_max;
-    get_affected_region(region_min, region_max, brush.get_aabb());
+    ivec3 region_min;
+    ivec3 region_max;
+    const size_t N = VM_CHUNK_SIZE + VM_CHUNK_BORDER;
+    get_covered_region(brush.get_aabb(), region_min, region_max);
 
-    /*
-    auto bb = brush.get_aabb();
-    fprintf(stderr, "AABBmin (%.3f, %.3f, %.3f), AABBmax (%.3f, %.3f, %.3f)\n",
-            bb.min.x, bb.min.y, bb.min.z, bb.max.x, bb.max.y, bb.max.z);
-    fprintf(stderr, "Affected region (%d,%d,%d)x(%d,%d,%d)\n",
-            region_min.x, region_min.y, region_min.z,
-            region_max.x, region_max.y, region_max.z);
-    */
     compute::kernel &sampler = m_sdf_samplers.at(brush.id());
     sampler.set_arg(2, static_cast<int>(op));
     sampler.set_arg(3, brush.material());
@@ -106,44 +107,33 @@ void Scene::sample(const Brush &brush, Operation op) {
     sampler.set_arg(6, 0.5f * brush.get_scale());
     sampler.set_arg(7, brush.get_rotation());
 
-    const int N = VM_CHUNK_SIZE + VM_CHUNK_BORDER;
-
     for (int z = region_min.z; z <= region_max.z; ++z) {
     for (int y = region_min.y; y <= region_max.y; ++y) {
     for (int x = region_min.x; x <= region_max.x; ++x) {
-        size_t current = get_coord_hash(x, y, z);
-        auto &&node = m_chunks[current];
-
-        if (!node.volume) {
-            node.volume = move(create_volume(N));
-            node.origin = get_chunk_origin(x, y, z);
-            node.coord = ivec3(x, y, z);
-
-            m_initializer.set_arg(0, *node.volume);
-            /* Initialize using (isovalue, material) = (1e5, -1) */
-            m_initializer.set_arg(1, vec4(1e5, -1, 0, 0));
-            m_compute_ctx->queue.enqueue_nd_range_kernel(
-                    m_initializer,
-                    3,
-                    nullptr,
-                    compute::dim(N, N, N).data(),
-                    nullptr);
-
-            fprintf(stderr, "Created node (%d, %d, %d), number of nodes: %zu\n",
-                    x, y, z, m_chunks.size());
+        const ivec3 coord{ x, y, z };
+        if (m_chunks.find(coord_hash(coord)) == m_chunks.end()) {
+            auto chunk = make_shared<Chunk>(coord, m_compute_ctx->context,
+                                            m_volume_format);
+            m_chunks.emplace(chunk_hash(chunk), chunk);
+            init_chunk(chunk);
+            fprintf(stderr,
+                    "Created chunk (%d, %d, %d), number of chunks: %zu\n", x, y,
+                    z, m_chunks.size());
         }
-        // Fuck standards. OpenCL < 2.0 standard does not allow images to be read-write,
-        // but it works anyway on every device I tested against, so... why bother?
-        sampler.set_arg(0, *node.volume);
-        sampler.set_arg(1, *node.volume);
-        sampler.set_arg(4, node.origin);
+        auto chunk = m_chunks[coord_hash(coord)];
+        lock_guard<mutex> lock(chunk->get_mutex());
+
+        // Fuck standards. OpenCL < 2.0 standard does not allow images to be
+        // read-write, but it works anyway on every device I tested against,
+        // so... why bother?
+        sampler.set_arg(0, chunk->get_volume());
+        sampler.set_arg(1, chunk->get_volume());
+        sampler.set_arg(4, get_chunk_origin(coord));
         m_compute_ctx->queue.enqueue_nd_range_kernel(
-                sampler,
-                3,
-                nullptr,
-                compute::dim(N, N, N).data(),
-                nullptr);
+                sampler, 3, nullptr, compute::dim(N, N, N).data(), nullptr);
         m_compute_ctx->queue.flush();
+        // Queue this modified chunk to be persisted on the next occassion
+        m_archive.persist_later(chunk);
     }}}
     m_compute_ctx->queue.finish();
 }
@@ -156,86 +146,23 @@ void Scene::sub(const Brush &brush) {
     sample(brush, Operation::Sub);
 }
 
-void Scene::persist_chunk(ostream &out, const Scene::Chunk &chunk) const {
-    const size_t N = VM_CHUNK_SIZE + VM_CHUNK_BORDER;
-    vector<int16_t> buffer(2*N*N*N);
-    m_compute_ctx->queue.enqueue_read_image<3>(*chunk.volume,
-                                               compute::dim(0, 0, 0),
-                                               compute::dim(N, N, N),
-                                               buffer.data());
-    m_compute_ctx->queue.flush();
-    m_compute_ctx->queue.finish();
-    for (size_t i = 0; i < buffer.size(); ++i) {
-        out <= buffer[i];
+vector<const Chunk *> Scene::get_chunks_to_render() const {
+    vector<const Chunk *> chunks(m_chunks.size());
+    size_t index = 0;
+    for (const auto &chunk : m_chunks) {
+        chunks[index++] = chunk.second.get();
     }
 
-    out <= chunk.coord;
-    out <= chunk.origin;
-}
+    vec3 camera_origin = m_camera->get_origin();
+    auto chunk_comparator = [camera_origin](const Chunk *&lhs,
+                                            const Chunk *&rhs) {
+        return distance2(camera_origin, get_chunk_origin(lhs->get_coord()))
+               < distance2(camera_origin, get_chunk_origin(rhs->get_coord()));
+    };
 
-void Scene::restore_chunk(istream &in, Scene::Chunk &chunk) {
-    const size_t N = VM_CHUNK_SIZE + VM_CHUNK_BORDER;
-    vector<int16_t> buffer(2*N*N*N);
-
-    for (size_t i = 0; i < buffer.size(); ++i) {
-        in >= buffer[i];
-    }
-    chunk.volume = move(create_volume(N));
-    m_compute_ctx->queue.enqueue_write_image<3>(*chunk.volume,
-                                                compute::dim(0, 0, 0),
-                                                compute::dim(N, N, N),
-                                                buffer.data());
-    m_compute_ctx->queue.flush();
-    m_compute_ctx->queue.finish();
-    in >= chunk.coord;
-    in >= chunk.origin;
-}
-
-istream &operator>>(istream &in, Scene &scene) {
-    scene.m_chunks.clear();
-    int chunk_size;
-    int chunk_border;
-    double voxel_size;
-
-    in >= chunk_size
-       >= chunk_border
-       >= voxel_size;
-
-    if (chunk_size != VM_CHUNK_SIZE
-            || chunk_border != VM_CHUNK_BORDER
-            || voxel_size != VM_VOXEL_SIZE) {
-        throw invalid_argument("Mismatched voxel format");
-    }
-
-    size_t num_chunks;
-    in >= num_chunks;
-    in >> *scene.m_camera.get();
-
-    for (size_t i = 0; i < num_chunks; ++i) {
-        size_t chunk_hash;
-        in >= chunk_hash;
-        scene.restore_chunk(in, scene.m_chunks[chunk_hash]);
-        fprintf(stderr, "Restored (%zu/%zu)\n", i + 1, num_chunks);
-    }
-
-    return in;
-}
-
-ostream &operator<<(ostream &out, const Scene &scene) {
-    out <= VM_CHUNK_SIZE
-        <= VM_CHUNK_BORDER
-        <= VM_VOXEL_SIZE;
-
-    out <= scene.m_chunks.size();
-    out << *scene.m_camera.get();
-
-    int index = 0;
-    for (const auto &it : scene.m_chunks) {
-        out <= it.first;
-        scene.persist_chunk(out, it.second);
-        fprintf(stderr, "Persisted (%d/%zu)\n", ++index, scene.m_chunks.size());
-    }
-    return out;
+    sort(chunks.begin(), chunks.end(), chunk_comparator);
+    /* TODO: frustum culling */
+    return chunks;
 }
 
 } // namespace vm

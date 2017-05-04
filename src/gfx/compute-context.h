@@ -3,6 +3,7 @@
 
 #define BOOST_COMPUTE_DEBUG_KERNEL_COMPILATION
 
+#include <GL/glew.h>
 #include <CL/cl.h>
 /* Unfortunately CL/cl.h defines this, and boost::compute relies on that, while
  * OpenCL 2.0 is not available */

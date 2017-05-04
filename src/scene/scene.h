@@ -1,16 +1,21 @@
 #ifndef VM_SCENE_SCENE_H
 #define VM_SCENE_SCENE_H
 #include <array>
+#include <fstream>
 #include <iostream>
 #include <memory>
 #include <unordered_map>
 #include <vector>
 
-#include "scene/camera.h"
 #include "scene/brush.h"
+#include "scene/camera.h"
+#include "scene/chunk.h"
+#include "scene/scene-archive.h"
 
 #include "gfx/texture.h"
 #include "gfx/compute-context.h"
+
+#include "utils/thread-pool.h"
 
 #include <boost/optional.hpp>
 
@@ -19,59 +24,42 @@ namespace vm {
 class Scene {
     friend class Renderer;
 
-    struct Chunk {
-        boost::optional<compute::image3d> volume;
-        glm::ivec3 coord;
-        glm::vec3 origin;
-    };
-
-    std::shared_ptr<Camera> m_camera;
     std::shared_ptr<ComputeContext> m_compute_ctx;
-    std::unordered_map<size_t, Chunk> m_chunks;
+    std::shared_ptr<Camera> m_camera;
+    std::unordered_map<size_t, std::shared_ptr<Chunk>> m_chunks;
+
     const compute::image_format m_volume_format;
     compute::kernel m_initializer;
     compute::kernel m_downsampler;
     /* Samplers of built-in SDF functions */
     std::array<compute::kernel, 2> m_sdf_samplers;
 
-    void persist_chunk(std::ostream &out, const Chunk &chunk) const;
-    void restore_chunk(std::istream &in, Chunk &chunk);
+    SceneArchive m_archive;
 
-    /**
-     * Used by the Renderer to get visible chunks ordered in a front to back
-     * manner.
-     */
-    std::vector<const Chunk *> get_chunks_to_render() const;
+    void init_kernels();
+    void init_persisted_chunks();
 
-    /**
-     * Gets the coordinates of a volume (in scene chunks) that are affected
-     * by the given AABB.
-     */
-    void get_affected_region(glm::ivec3 &out_min,
-                             glm::ivec3 &out_max,
-                             const AABB &aabb) const;
-
-    /** Returns hash of the chunk coordinates */
-    static size_t get_coord_hash(int x, int y, int z);
-
-    /** Finds node of specified coordinates or returns nullptr if nothing found */
-    Chunk *get_chunk_ptr(int x, int y, int z);
-
+    /** Gets the region (in chunk coordinates) covered by the specified aabb */
+    void get_covered_region(const AABB &region_aabb,
+                            glm::ivec3 &region_min,
+                            glm::ivec3 &region_max);
     /** Returns world position of the chunk */
-    glm::vec3 get_chunk_origin(int x, int y, int z) const;
+    static glm::vec3 get_chunk_origin(const glm::ivec3 &coord);
+    /** Initializes the chunk's volumetric data */
+    void init_chunk(const std::shared_ptr<Chunk> &chunk);
 
     enum Operation {
         Add = 0,
         Sub = 1
     };
 
-    compute::image3d create_volume(int N) const;
-
     /** Performs sampling of the brush */
     void sample(const Brush &brush, Operation op);
 
 public:
-    Scene(std::shared_ptr<ComputeContext> compute_ctx);
+    Scene(const std::shared_ptr<ComputeContext> &compute_ctx,
+          const std::shared_ptr<Camera> &camera,
+          const std::string &scene_directory);
 
     /**
      * Samples @p brush over the scene adding its volume to it.
@@ -83,23 +71,13 @@ public:
      */
     void sub(const Brush &brush);
 
-    /**
-     * Sets the current camera.
-     */
-    inline void set_camera(const std::shared_ptr<Camera> &camera) {
-        m_camera = camera;
-    }
-
     /** @returns the current camera. */
     inline const std::shared_ptr<Camera> get_camera() const {
         return m_camera;
     }
 
-    /** Serializes the scene into given stream. (NOTE: this is non-portable) */
-    friend std::istream &operator>>(std::istream &in, Scene &scene);
-
-    /** Initializes the scene from the stream. (NOTE: this is non-portable) */
-    friend std::ostream &operator<<(std::ostream &out, const Scene &scene);
+    /** @returns chunks to be rendered */
+    std::vector<const Chunk *> get_chunks_to_render() const;
 };
 
 } // namespace vm

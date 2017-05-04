@@ -12,9 +12,11 @@ pkg_search_module(OPENCL REQUIRED OpenCL)
 pkg_search_module(GLFW3 REQUIRED glfw3)
 pkg_search_module(GLM REQUIRED glm)
 pkg_search_module(GLEW REQUIRED glew)
-find_package(Boost REQUIRED)
+pkg_search_module(ZLIB REQUIRED zlib)
+find_package(Boost REQUIRED COMPONENTS filesystem regex iostreams)
+find_package(Threads REQUIRED)
 
-set(VM_CHUNK_SIZE 128 CACHE STRING "Size of the scene chunk (128 recommended)")
+set(VM_CHUNK_SIZE 156 CACHE STRING "Size of the scene chunk (156 recommended)")
 set(VM_CHUNK_BORDER 4 CACHE STRING "Chunk border improving chunk transitions quality (4 recommended)")
 set(VM_VOXEL_SIZE 0.02 CACHE STRING "Size of the single voxel in chunk (0.02 recommended)")
 set(VM_CHUNKS_PER_PASS 16 CACHE STRING "Maximum number of chunks rendered in a single pass")
@@ -48,4 +50,11 @@ foreach(filename ${CL_SOURCES})
 endforeach()
 
 add_executable(${PROJECT_NAME} ${CPP_SOURCES})
-target_link_libraries(${PROJECT_NAME} ${GL_LIBRARIES} ${OPENCL_LIBRARIES} ${GLFW3_LIBRARIES} ${GLEW_LIBRARIES})
+target_link_libraries(${PROJECT_NAME}
+                      ${GL_LIBRARIES}
+                      ${GLFW3_LIBRARIES}
+                      ${GLEW_LIBRARIES}
+                      ${OPENCL_LIBRARIES}
+                      ${ZLIB_LIBRARIES}
+                      ${Boost_LIBRARIES}
+                      Threads::Threads)

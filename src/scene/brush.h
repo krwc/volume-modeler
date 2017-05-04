@@ -2,6 +2,7 @@
 #define VM_SCENE_BRUSH_H
 
 #include <glm/glm.hpp>
+#include <glm/gtc/quaternion.hpp>
 
 #include "math/aabb.h"
 

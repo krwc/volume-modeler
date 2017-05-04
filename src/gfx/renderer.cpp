@@ -215,8 +215,8 @@ void Renderer::render(const Scene &scene) {
 
 #warning "TODO: multiple images per job (or not? it was slower when I initially tested it)"
     for (auto &&chunk : scene.get_chunks_to_render()) {
-        m_raymarcher.set_arg(4, *chunk->volume);
-        m_raymarcher.set_arg(5, chunk->origin);
+        m_raymarcher.set_arg(4, chunk->get_volume());
+        m_raymarcher.set_arg(5, Scene::get_chunk_origin(chunk->get_coord()));
 
         m_compute_ctx->queue.enqueue_nd_range_kernel(
                 m_raymarcher,

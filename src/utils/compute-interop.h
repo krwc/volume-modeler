@@ -1,6 +1,5 @@
 #ifndef VM_COMPUTE_INTEROP_H
 #define VM_COMPUTE_INTEROP_H
-
 #include <glm/glm.hpp>
 
 #include "gfx/compute-context.h"
