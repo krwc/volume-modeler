@@ -169,27 +169,41 @@ void SceneArchive::persist_later(shared_ptr<Chunk> chunk) {
 
     m_jobs[chunk] = m_thread_pool.enqueue([=, &jobs_mutex=m_jobs_mutex]() {
         const size_t N = VM_CHUNK_SIZE + VM_CHUNK_BORDER;
-        vector<uint8_t> buffer(m_voxel_size * N * N * N);
+        compute::event copy_finished;
+        compute::event read_finished;
+        compute::image3d image_copy(m_compute_ctx->context, N, N, N,
+                                    m_volume_format);
         {
             lock_guard<mutex> chunk_lock(chunk->get_mutex());
-            cl_event event;
+            lock_guard<mutex> queue_lock(m_compute_ctx->queue_mutex);
+            copy_finished = m_compute_ctx->queue.enqueue_copy_image(
+                                                    chunk->get_volume(),
+                                                    image_copy,
+                                                    compute::dim(0,0,0).data(),
+                                                    compute::dim(0,0,0).data(),
+                                                    compute::dim(N,N,N).data());
+        }
+        copy_finished.wait();
+
+        vector<uint8_t> buffer(m_voxel_size * N * N * N);
+        {
+            lock_guard<mutex> queue_lock(m_compute_ctx->queue_mutex);
+            // NOTE: boost::compute does not have enqueue_read_image_async
             cl_int retval = clEnqueueReadImage(
                     m_compute_ctx->queue.get(),
-                    chunk->get_volume().get(),
+                    image_copy.get(),
                     CL_FALSE,
-                    compute::dim(0, 0, 0).data(),
-                    compute::dim(N, N, N).data(),
-                    0, 0, buffer.data(), 0, nullptr, &event);
+                    compute::dim(0,0,0).data(),
+                    compute::dim(N,N,N).data(),
+                    0, 0, buffer.data(), 0, nullptr,
+                    &read_finished.get());
             if (retval != CL_SUCCESS) {
                 LOG(error) << "clEnqueueReadImage failed " << retval;
             }
             assert(retval == CL_SUCCESS);
-            retval = clWaitForEvents(1, &event);
-            if (retval != CL_SUCCESS) {
-                LOG(error) << "clWaitForEvents failed " << retval;
-            }
-            assert(retval == CL_SUCCESS);
         }
+        read_finished.wait();
+
         detail::persist(chunk_filename(chunk), buffer);
         lock_guard<mutex> jobs_lock(jobs_mutex);
         m_jobs.erase(chunk);

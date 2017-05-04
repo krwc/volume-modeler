@@ -91,6 +91,7 @@ void Scene::init_chunk(const shared_ptr<Chunk> &chunk) {
     // which is an air representation
     m_initializer.set_arg(0, chunk->get_volume());
     m_initializer.set_arg(1, vec4(1e5, -1, 0, 0));
+    lock_guard<mutex> queue_lock(m_compute_ctx->queue_mutex);
     m_compute_ctx->queue.enqueue_nd_range_kernel(
             m_initializer, 3, nullptr, compute::dim(N, N, N).data(), nullptr);
 }
@@ -129,12 +130,14 @@ void Scene::sample(const Brush &brush, Operation op) {
         sampler.set_arg(0, chunk->get_volume());
         sampler.set_arg(1, chunk->get_volume());
         sampler.set_arg(4, get_chunk_origin(coord));
+        lock_guard<mutex> queue_lock(m_compute_ctx->queue_mutex);
         m_compute_ctx->queue.enqueue_nd_range_kernel(
                 sampler, 3, nullptr, compute::dim(N, N, N).data(), nullptr);
         m_compute_ctx->queue.flush();
         // Queue this modified chunk to be persisted on the next occassion
         m_archive.persist_later(chunk);
     }}}
+    lock_guard<mutex> queue_lock(m_compute_ctx->queue_mutex);
     m_compute_ctx->queue.finish();
 }
 

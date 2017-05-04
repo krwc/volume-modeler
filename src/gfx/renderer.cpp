@@ -189,25 +189,34 @@ void Renderer::render(const Scene &scene) {
     };
     const size_t num_objects =
             sizeof(objects_to_acquire) / sizeof(*objects_to_acquire);
-    clEnqueueAcquireGLObjects(m_compute_ctx->queue.get(),
-                              num_objects,
-                              objects_to_acquire,
-                              0,
-                              nullptr,
-                              nullptr);
-
+    {
+        lock_guard<mutex> queue_lock(m_compute_ctx->queue_mutex);
+        clEnqueueAcquireGLObjects(m_compute_ctx->queue.get(),
+                                  num_objects,
+                                  objects_to_acquire,
+                                  0,
+                                  nullptr,
+                                  nullptr);
+    }
     // Clear frame
     m_initializer.set_arg(0, m_cl_frame);
     m_initializer.set_arg(1, vec4(0.3, 0.3, 0.3, -1));
-    m_compute_ctx->queue.enqueue_nd_range_kernel(
-            m_initializer, 2, nullptr, compute::dim(m_width, m_height).data(),
-            nullptr);
+    {
+        lock_guard<mutex> queue_lock(m_compute_ctx->queue_mutex);
+        m_compute_ctx->queue.enqueue_nd_range_kernel(
+                m_initializer, 2, nullptr,
+                compute::dim(m_width, m_height).data(), nullptr);
+    }
     // Clear depth
     m_initializer.set_arg(0, m_cl_depth);
     m_initializer.set_arg(1, vec4(1, 1, 1, 1));
-    m_compute_ctx->queue.enqueue_nd_range_kernel(
-            m_initializer, 2, nullptr, compute::dim(m_width, m_height).data(),
-            nullptr);
+
+    {
+        lock_guard<mutex> queue_lock(m_compute_ctx->queue_mutex);
+        m_compute_ctx->queue.enqueue_nd_range_kernel(
+                m_initializer, 2, nullptr,
+                compute::dim(m_width, m_height).data(), nullptr);
+    }
 
     m_raymarcher.set_arg(0, m_cl_frame);
     m_raymarcher.set_arg(1, m_cl_depth);
@@ -219,23 +228,29 @@ void Renderer::render(const Scene &scene) {
         m_raymarcher.set_arg(4, chunk->get_volume());
         m_raymarcher.set_arg(5, Scene::get_chunk_origin(chunk->get_coord()));
 
-        m_compute_ctx->queue.enqueue_nd_range_kernel(
-                m_raymarcher,
-                2,
-                nullptr,
-                compute::dim(m_width, m_height).data(),
-                nullptr);
+        {
+            lock_guard<mutex> queue_lock(m_compute_ctx->queue_mutex);
+            m_compute_ctx->queue.enqueue_nd_range_kernel(
+                    m_raymarcher,
+                    2,
+                    nullptr,
+                    compute::dim(m_width, m_height).data(),
+                    nullptr);
+        }
     }
 
-    clEnqueueReleaseGLObjects(m_compute_ctx->queue.get(),
-                              num_objects,
-                              objects_to_acquire,
-                              0,
-                              nullptr,
-                              nullptr);
+    {
+        lock_guard<mutex> queue_lock(m_compute_ctx->queue_mutex);
+        clEnqueueReleaseGLObjects(m_compute_ctx->queue.get(),
+                                  num_objects,
+                                  objects_to_acquire,
+                                  0,
+                                  nullptr,
+                                  nullptr);
 
-    m_compute_ctx->queue.flush();
-    m_compute_ctx->queue.finish();
+        m_compute_ctx->queue.flush();
+        m_compute_ctx->queue.finish();
+    }
 
     // Draw frame on the screen
     glClearColor(0.3, 0.3, 0.3, 1.0);

@@ -14,6 +14,7 @@
 #include <boost/compute/interop/opengl.hpp>
 #include <boost/compute/utility/dim.hpp>
 #include <memory>
+#include <mutex>
 
 namespace compute = boost::compute;
 namespace vm {
@@ -25,6 +26,7 @@ class ComputeContext {
 public:
     compute::context context;
     compute::command_queue queue;
+    std::mutex queue_mutex;
 
     ComputeContext(MakeSharedEnabler);
 };
