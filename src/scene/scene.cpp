@@ -3,6 +3,7 @@
 #include "scene.h"
 
 #include "utils/compute-interop.h"
+#include "utils/log.h"
 #include "utils/persistence.h"
 
 #include <glm/gtx/norm.hpp>
@@ -116,9 +117,8 @@ void Scene::sample(const Brush &brush, Operation op) {
                                             m_volume_format);
             m_chunks.emplace(chunk_hash(chunk), chunk);
             init_chunk(chunk);
-            fprintf(stderr,
-                    "Created chunk (%d, %d, %d), number of chunks: %zu\n", x, y,
-                    z, m_chunks.size());
+            LOG(trace) << "Created chunk (" << x << ',' << y << ',' << z
+                       << "), number of chunks: " << m_chunks.size();
         }
         auto chunk = m_chunks[coord_hash(coord)];
         lock_guard<mutex> lock(chunk->get_mutex());

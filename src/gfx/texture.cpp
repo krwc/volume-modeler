@@ -1,6 +1,7 @@
 #include "texture.h"
 
-#include <cstdio>
+#include "utils/log.h"
+
 #include <cassert>
 
 namespace vm {
@@ -36,7 +37,8 @@ Texture2d::Texture2d(const TextureDesc2d &desc)
     glTexImage2D(GL_TEXTURE_2D, 0, desc.internal_format, desc.width,
                  desc.height, 0, GL_RGBA, GL_FLOAT, nullptr);
     glBindTexture(GL_TEXTURE_2D, current_texture);
-    fprintf(stderr, "Created %dx%d texture %u\n", m_desc.width, m_desc.height, m_id);
+    LOG(trace) << "Created " << m_desc.width << 'x' << m_desc.height
+               << " texture " << m_id;
 }
 
 Texture2d::~Texture2d() {
@@ -55,8 +57,8 @@ Texture3d::Texture3d(const TextureDesc3d &desc)
     glTexImage3D(GL_TEXTURE_3D, 0, desc.internal_format, desc.width,
                  desc.height, desc.depth, 0, GL_RGBA, GL_FLOAT, nullptr);
     glBindTexture(GL_TEXTURE_3D, current_texture);
-    fprintf(stderr, "Created %dx%dx%d texture %u\n", m_desc.width, m_desc.height,
-            m_desc.depth, m_id);
+    LOG(trace) << "Created " << m_desc.width << 'x' << m_desc.height << 'x'
+               << m_desc.depth << " texture " << m_id;
 }
 
 Texture3d::~Texture3d() {
@@ -88,8 +90,8 @@ TextureArray::TextureArray(const TextureArrayDesc &desc)
     glTexImage3D(GL_TEXTURE_2D_ARRAY, 0, desc.internal_format, desc.width,
                  desc.height, desc.layers, 0, GL_RGBA, GL_FLOAT, nullptr);
     glBindTexture(GL_TEXTURE_2D_ARRAY, current_texture);
-    fprintf(stderr, "Created array of %d textures of size %dx%d each %u\n",
-            m_desc.layers, m_desc.width, m_desc.height, m_id);
+    LOG(trace) << "Created array of " << m_desc.layers << " textures of size "
+               << m_desc.width << 'x' << m_desc.height << " each " << m_id;
 }
 
 TextureArray::~TextureArray() {

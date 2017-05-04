@@ -6,6 +6,7 @@
 #include "scene/scene.h"
 
 #include "utils/compute-interop.h"
+#include "utils/log.h"
 
 #include <glm/glm.hpp>
 #include <iostream>
@@ -107,7 +108,7 @@ void Renderer::init_textures() {
 void Renderer::init_materials(const vector<string> &materials) {
     set<pair<int, int>> extents;
     for (size_t layer = 0; layer < materials.size(); ++layer) {
-        fprintf(stderr, "Loading material %s\n", materials[layer].c_str());
+        LOG(trace) << "Loading material " << materials[layer];
 
         Image img(materials[layer]);
         extents.emplace(img.width, img.height);

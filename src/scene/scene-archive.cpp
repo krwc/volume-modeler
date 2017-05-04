@@ -1,6 +1,7 @@
 #include "config.h"
 
 #include "scene-archive.h"
+#include "utils/log.h"
 #include "utils/persistence.h"
 
 #include <cassert>
@@ -81,7 +82,7 @@ static void persist(const string &filename, const vector<uint8_t> &data) {
     boost::iostreams::write(out, reinterpret_cast<const char *>(data.data()),
                             data.size());
 
-    cerr << "Persisted " << filename << endl;
+    LOG(trace) << "Persisted " << filename;
 }
 
 static vector<uint8_t> restore(const string &filename, size_t voxel_size) {
@@ -98,7 +99,7 @@ static vector<uint8_t> restore(const string &filename, size_t voxel_size) {
     vector<uint8_t> data(voxel_size * N * N * N);
     boost::iostreams::read(in, reinterpret_cast<char *>(&data[0]), data.size());
 
-    cerr << "Restored " << filename << endl;
+    LOG(trace) << "Restored " << filename;
     return data;
 }
 
@@ -179,8 +180,14 @@ void SceneArchive::persist_later(shared_ptr<Chunk> chunk) {
                     compute::dim(0, 0, 0).data(),
                     compute::dim(N, N, N).data(),
                     0, 0, buffer.data(), 0, nullptr, &event);
+            if (retval != CL_SUCCESS) {
+                LOG(error) << "clEnqueueReadImage failed " << retval;
+            }
             assert(retval == CL_SUCCESS);
             retval = clWaitForEvents(1, &event);
+            if (retval != CL_SUCCESS) {
+                LOG(error) << "clWaitForEvents failed " << retval;
+            }
             assert(retval == CL_SUCCESS);
         }
         detail::persist(chunk_filename(chunk), buffer);

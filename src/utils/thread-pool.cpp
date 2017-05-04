@@ -9,6 +9,8 @@
 #include <iostream>
 #include <condition_variable>
 
+#include "utils/log.h"
+
 using namespace std;
 namespace vm {
 
@@ -54,12 +56,12 @@ public:
                     try {
                         job();
                     } catch (exception &e) {
-                        cerr << "Job exception: " << e.what() << endl;
+                        LOG(warning) << "Exception thrown by the job: " << e.what();
                     }
                 }
             });
         }
-        cerr << "Spawned " << m_workers.size() << " worker threads" << endl;
+        LOG(info) << "Spawned " << m_workers.size() << " worker threads";
     }
 
     ~ThreadPoolImpl() {

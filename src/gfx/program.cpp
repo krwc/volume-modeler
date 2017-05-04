@@ -1,10 +1,11 @@
 #include "program.h"
 
+#include "utils/log.h"
+
 #include <cassert>
 #include <iterator>
 #include <fstream>
 #include <sstream>
-#include <iostream>
 
 namespace vm {
 using namespace std;
@@ -120,7 +121,7 @@ void Program::link() {
     if (length > 0) {
         string log(length - 1, 0);
         glGetProgramInfoLog(m_id, length - 1, &length, &log[0]);
-        cerr << "Program link log:\n" << log << endl;
+        LOG(debug) << "Program link log: " << endl << log;
     }
     if (status == GL_FALSE) {
         throw runtime_error("Cannot link program");

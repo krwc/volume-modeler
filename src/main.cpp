@@ -14,6 +14,8 @@
 #include "scene/brush-cube.h"
 #include "scene/brush-ball.h"
 
+#include "utils/log.h"
+
 using namespace std;
 using namespace glm;
 
@@ -256,8 +258,8 @@ static void report_frametime() {
     frametime_sum += g_dt;
 
     if (frame_counter == 600) {
-        fprintf(stderr, "frametime=%.3fms; avg=%.3fms\n", g_dt,
-                frametime_sum / frame_counter);
+        LOG(debug) << "frametime=" << g_dt << "ms; "
+                   << "avg=" << (frametime_sum / frame_counter) << "ms";
         frametime_sum = 0;
         frame_counter = 0;
     }
@@ -265,7 +267,7 @@ static void report_frametime() {
 
 int main(int argc, char **argv) {
     if (argc > 2) {
-        cerr << "Usage: " << argv[0] << " [scene-persistence-dir]" << endl;
+        LOG(error) << "Usage: " << argv[0] << " [scene-persistence-dir]";
         return 1;
     }
     init();
