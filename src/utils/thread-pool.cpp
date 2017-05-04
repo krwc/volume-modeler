@@ -53,6 +53,7 @@ public:
                         job = m_queue.front()->job;
                         m_queue.pop_front();
                     }
+                    m_jobs_cv.notify_all();
                     try {
                         job();
                     } catch (exception &e) {
