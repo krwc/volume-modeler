@@ -16,7 +16,7 @@ pkg_search_module(ZLIB REQUIRED zlib)
 find_package(Boost REQUIRED COMPONENTS filesystem regex iostreams)
 find_package(Threads REQUIRED)
 
-set(VM_CHUNK_SIZE 156 CACHE STRING "Size of the scene chunk (156 recommended)")
+set(VM_CHUNK_SIZE 140 CACHE STRING "Size of the scene chunk (140 recommended)")
 set(VM_CHUNK_BORDER 4 CACHE STRING "Chunk border improving chunk transitions quality (4 recommended)")
 set(VM_VOXEL_SIZE 0.02 CACHE STRING "Size of the single voxel in chunk (0.02 recommended)")
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/config/config.h.in
