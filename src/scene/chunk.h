@@ -52,16 +52,6 @@ public:
     }
 };
 
-#if 0
-struct Chunk {
-    compute::image3d volume;
-    std::mutex volume_mutex;
-    glm::ivec3 coord;
-    glm::vec3 origin;
-    int lod;
-};
-#endif
-
 } // namespace vm
 
 #endif /* VM_SCENE_CHUNK_H */
