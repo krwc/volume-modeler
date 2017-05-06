@@ -22,7 +22,7 @@ Buffer::Buffer(Buffer &&other)
 }
 
 Buffer::Buffer(const BufferDesc &desc) {
-    m_desc = boost::make_optional(desc);
+    m_desc = desc;
     glCreateBuffers(1, &m_id);
     glNamedBufferData(m_id, desc.initial_size, desc.initial_data, desc.hint);
 }
