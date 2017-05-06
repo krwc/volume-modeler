@@ -1,13 +1,11 @@
 #include "thread-pool.h"
 #include <atomic>
-#include <mutex>
-#include <thread>
-#include <chrono>
-#include <vector>
-#include <list>
+#include <condition_variable>
 #include <functional>
 #include <iostream>
-#include <condition_variable>
+#include <list>
+#include <mutex>
+#include <thread>
 
 #include "utils/log.h"
 
@@ -107,7 +105,6 @@ public:
                 }
             }
             m_jobs_cv.notify_all();
-            using namespace std::literals::chrono_literals;
         }
         m_running.store(false);
         m_jobs_cv.notify_all();
