@@ -1,4 +1,4 @@
-#include "compute-context.h"
+#include "compute/context.h"
 #include "utils/log.h"
 
 using namespace std;

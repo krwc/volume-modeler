@@ -13,7 +13,7 @@
 #include "scene/scene-archive.h"
 
 #include "gfx/texture.h"
-#include "gfx/compute-context.h"
+#include "compute/context.h"
 
 #include "utils/thread-pool.h"
 

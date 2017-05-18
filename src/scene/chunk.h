@@ -2,7 +2,7 @@
 #define VM_SCENE_CHUNK_H
 #include <glm/glm.hpp>
 
-#include "gfx/compute-context.h"
+#include "compute/context.h"
 
 #include <boost/optional.hpp>
 #include <mutex>

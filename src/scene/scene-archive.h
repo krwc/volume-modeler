@@ -7,7 +7,7 @@
 #include <string>
 #include <tuple>
 
-#include "gfx/compute-context.h"
+#include "compute/context.h"
 #include "scene/chunk.h"
 #include "utils/thread-pool.h"
 

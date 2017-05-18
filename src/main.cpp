@@ -8,7 +8,7 @@
 #include <thread>
 
 #include "gfx/renderer.h"
-#include "gfx/compute-context.h"
+#include "compute/context.h"
 
 #include "scene/scene.h"
 #include "scene/brush-cube.h"

@@ -4,7 +4,7 @@
 #include "config.h"
 
 #include "gfx/buffer.h"
-#include "gfx/compute-context.h"
+#include "compute/context.h"
 #include "gfx/program.h"
 #include "gfx/texture.h"
 
