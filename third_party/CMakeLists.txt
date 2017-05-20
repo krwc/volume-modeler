@@ -1,0 +1,5 @@
+if(WITH_TEST)
+    option(BUILD_GMOCK "" OFF)
+    option(BUILD_GTEST "" ON)
+    add_subdirectory(googletest)
+endif()

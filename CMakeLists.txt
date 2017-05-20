@@ -19,12 +19,16 @@ find_package(Threads REQUIRED)
 set(VM_CHUNK_SIZE 140 CACHE STRING "Size of the scene chunk (140 recommended)")
 set(VM_CHUNK_BORDER 4 CACHE STRING "Chunk border improving chunk transitions quality (4 recommended)")
 set(VM_VOXEL_SIZE 0.02 CACHE STRING "Size of the single voxel in chunk (0.02 recommended)")
-configure_file(${CMAKE_CURRENT_SOURCE_DIR}/config/config.h.in
-               ${CMAKE_CURRENT_BINARY_DIR}/config/config.h)
-include_directories(${CMAKE_CURRENT_BINARY_DIR}/config)
+
+option(WITH_TEST "Enables/disables test suite compilation" ON)
 
 include_directories(src)
 add_subdirectory(src)
+add_subdirectory(third_party)
+
+if(WITH_TEST)
+    add_subdirectory(test)
+endif()
 
 file(GLOB_RECURSE CPP_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp)
 file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/shaders DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
@@ -48,12 +52,9 @@ foreach(filename ${CL_SOURCES})
     configure_file(${filename} ${CMAKE_CURRENT_BINARY_DIR}/${relative_filename})
 endforeach()
 
-add_executable(${PROJECT_NAME} ${CPP_SOURCES})
-target_link_libraries(${PROJECT_NAME}
-                      ${GL_LIBRARIES}
-                      ${GLFW3_LIBRARIES}
-                      ${GLEW_LIBRARIES}
-                      ${OPENCL_LIBRARIES}
-                      ${ZLIB_LIBRARIES}
-                      ${Boost_LIBRARIES}
-                      Threads::Threads)
+configure_file(${CMAKE_CURRENT_SOURCE_DIR}/config/config.h.in
+               ${CMAKE_CURRENT_BINARY_DIR}/config/config.h)
+include_directories(${CMAKE_CURRENT_BINARY_DIR}/config)
+
+add_library(${PROJECT_NAME}_object OBJECT ${CPP_SOURCES})
+add_subdirectory(demo)

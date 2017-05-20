@@ -12,6 +12,7 @@
 #include <boost/compute/core.hpp>
 #include <boost/compute/image.hpp>
 #include <boost/compute/interop/opengl.hpp>
+#include <boost/compute/container/vector.hpp>
 #include <boost/compute/utility/dim.hpp>
 #include <memory>
 #include <mutex>
