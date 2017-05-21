@@ -18,7 +18,8 @@ void swap_ints(int *a, int *b) {
 
 kernel void local_scan(global uint *input,
                        global uint *output,
-                       global uint *next) {
+                       global uint *next,
+                       uint size) {
     local uint temp[2][BLK_SIZE];
     const int l_tid = get_local_id(0);
     const int g_tid = get_global_id(0);
@@ -26,7 +27,11 @@ kernel void local_scan(global uint *input,
     int po = 0;
     int pi = 1;
 
-    temp[po][l_tid] = input[g_tid];
+    if (g_tid < size) {
+        temp[po][l_tid] = input[g_tid];
+    } else {
+        temp[po][l_tid] = 0;
+    }
     barrier(CLK_LOCAL_MEM_FENCE);
 
     for (uint offset = 1; offset < BLK_SIZE; offset *= 2) {
@@ -39,7 +44,9 @@ kernel void local_scan(global uint *input,
         barrier(CLK_LOCAL_MEM_FENCE);
     }
 
-    output[g_tid] = temp[po][l_tid];
+    if (g_tid < size) {
+        output[g_tid] = temp[po][l_tid];
+    }
 
     if (l_tid == 0 && next) {
         next[get_group_id(0)] = temp[po][BLK_SIZE - 1];
@@ -55,16 +62,19 @@ kernel void fixup_scan(global uint *output,
 }
 )";
 
+namespace {
+static size_t align_to_block_size(size_t input, size_t block_size) {
+    return input + (block_size - input % block_size);
+}
+} // namespace
+
 Scan::Scan(::compute::command_queue &queue,
            size_t input_size)
         : m_input_size(input_size)
+        , m_aligned_size(align_to_block_size(input_size, Scan::BLOCK_SIZE))
         , m_phases()
         , m_local_inclusive_scan()
         , m_fixup_scan() {
-    if (input_size % Scan::BLOCK_SIZE != 0) {
-        throw invalid_argument("input_size must be a Scan::BLOCK_SIZE multiple");
-    }
-
     {
         auto program = ::compute::program::create_with_source(scan_source,
                                                               queue.get_context());
@@ -77,14 +87,14 @@ Scan::Scan(::compute::command_queue &queue,
 
     size_t num_phases = 0;
     {
-        size_t size = input_size;
+        size_t size = m_input_size;
         while (size >= Scan::BLOCK_SIZE) {
             ++num_phases;
             size /= Scan::BLOCK_SIZE;
 
             /* Each array must be aligned to be a multiple of a block */
             const size_t array_size =
-                    size + (Scan::BLOCK_SIZE - size % Scan::BLOCK_SIZE);
+                    align_to_block_size(size, Scan::BLOCK_SIZE);
             m_phases.emplace_back(
                     ::compute::vector<uint32_t>(array_size, 0, queue));
             LOG(trace) << "Allocated buffer for " << array_size
@@ -106,10 +116,11 @@ Scan::Scan(::compute::command_queue &queue,
     } else {
         m_local_inclusive_scan.set_arg(2, NULL);
     }
-    queue.enqueue_1d_range_kernel(m_local_inclusive_scan, 0, m_input_size,
-                                  Scan::BLOCK_SIZE);
-
+    m_local_inclusive_scan.set_arg(3, static_cast<cl_uint>(m_input_size));
     ::compute::event event;
+    event = queue.enqueue_1d_range_kernel(m_local_inclusive_scan, 0,
+                                          m_aligned_size, Scan::BLOCK_SIZE);
+
     const size_t num_fixup_phases = m_phases.size();
     for (size_t j = 1; j <= num_fixup_phases; ++j) {
         m_local_inclusive_scan.set_arg(0, m_phases[j - 1]);
@@ -119,6 +130,8 @@ Scan::Scan(::compute::command_queue &queue,
         } else {
             m_local_inclusive_scan.set_arg(2, NULL);
         }
+        m_local_inclusive_scan.set_arg(3, static_cast<cl_uint>(
+                                                  m_phases[j - 1].size()));
         event = queue.enqueue_1d_range_kernel(
                 m_local_inclusive_scan, 0, m_phases[j - 1].size(), Scan::BLOCK_SIZE);
     }
@@ -133,7 +146,7 @@ Scan::Scan(::compute::command_queue &queue,
         m_fixup_scan.set_arg(0, output);
         m_fixup_scan.set_arg(1, m_phases[0]);
         event = queue.enqueue_1d_range_kernel(m_fixup_scan, 0,
-                                              m_input_size - Scan::BLOCK_SIZE,
+                                              m_aligned_size - Scan::BLOCK_SIZE,
                                               Scan::BLOCK_SIZE);
     }
     return event;

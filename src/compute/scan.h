@@ -9,6 +9,7 @@ class Scan {
     static const constexpr size_t BLOCK_SIZE = 1024;
 
     size_t m_input_size;
+    size_t m_aligned_size;
     /**
      * Arrays keeping temporaries generated during scan on number of elements
      * that exceed BLOCK_SIZE (which is 1024 actually).
