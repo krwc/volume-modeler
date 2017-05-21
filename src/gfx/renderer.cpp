@@ -5,7 +5,8 @@
 
 #include "scene/scene.h"
 
-#include "utils/compute-interop.h"
+#include "compute/interop.h"
+
 #include "utils/log.h"
 
 #include <glm/glm.hpp>
@@ -71,6 +72,7 @@ void Renderer::init_shaders() {
 }
 
 void Renderer::init_kernels() {
+#if 0
     auto program = compute::program::create_with_source_file(
             "media/kernels/raymarcher.cl", m_compute_ctx->context);
     ostringstream options;
@@ -83,6 +85,7 @@ void Renderer::init_kernels() {
     program.build(options.str());
     m_raymarcher = program.create_kernel("raymarcher");
     m_initializer = program.create_kernel("initialize");
+#endif
 }
 
 void Renderer::init_textures() {

@@ -27,6 +27,7 @@ class ComputeContext {
 public:
     compute::context context;
     compute::command_queue queue;
+    compute::command_queue ooq;
     std::mutex queue_mutex;
 
     ComputeContext(MakeSharedEnabler);

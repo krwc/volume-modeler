@@ -17,6 +17,8 @@
 
 #include "utils/thread-pool.h"
 
+#include "dc/sampler.h"
+
 #include <boost/optional.hpp>
 
 namespace vm {
@@ -28,34 +30,25 @@ class Scene {
     std::shared_ptr<Camera> m_camera;
     std::unordered_map<size_t, std::shared_ptr<Chunk>> m_chunks;
 
-    compute::kernel m_initializer;
-    compute::kernel m_downsampler;
-    /* Samplers of built-in SDF functions */
-    std::array<compute::kernel, 2> m_sdf_samplers;
-
     SceneArchive m_archive;
+    /* Dual Contouring related classes */
+    dc::Sampler m_sampler;
 
-    void init_kernels();
     void init_persisted_chunks();
 
     /** Gets the region (in chunk coordinates) covered by the specified aabb */
     void get_covered_region(const AABB &region_aabb,
                             glm::ivec3 &region_min,
                             glm::ivec3 &region_max);
-    /** Returns world position of the chunk */
-    static glm::vec3 get_chunk_origin(const glm::ivec3 &coord);
-    /** Initializes the chunk's volumetric data */
+        /** Initializes the chunk's volumetric data */
     void init_chunk(const std::shared_ptr<Chunk> &chunk);
-
-    enum Operation {
-        Add = 0,
-        Sub = 1
-    };
-
     /** Performs sampling of the brush */
-    void sample(const Brush &brush, Operation op);
+    void sample(const Brush &brush, dc::Sampler::Operation operation);
 
 public:
+    /** Returns world position of the chunk */
+    static glm::vec3 get_chunk_origin(const glm::ivec3 &coord);
+
     static compute::image_format samples_format();
     static compute::image_format vertices_format();
     static compute::image_format edges_format();

@@ -4,109 +4,21 @@
 
 #pragma OPENCL EXTENSION cl_khr_3d_image_writes : enable
 
-#include "kernels/math-utils.h"
+#include "media/kernels/utils.h"
 
-constant sampler_t nearest_sampler = CLK_NORMALIZED_COORDS_FALSE
-                                     | CLK_ADDRESS_CLAMP_TO_EDGE
-                                     | CLK_FILTER_NEAREST;
-
-kernel void initialize(write_only image3d_t output,
-                       float4 value) {
-    const int x = get_global_id(0);
-    const int y = get_global_id(1);
-    const int z = get_global_id(2);
-    write_imagef(output, (int4)(x, y, z, 0), value);
+float sdf_ball(float3 p, float3 scale) {
+    return (length(p / scale) - 1) * min(min(scale.x, scale.y), scale.z);
 }
 
-float ball_sdf(float3 p, float3 brush_scale) {
-    return (length(p / brush_scale) - 1)
-           * min(min(brush_scale.x, brush_scale.y), brush_scale.z);
-}
-
-float cube_sdf(float3 p, float3 brush_scale) {
+float sdf_cube(float3 p, float3 scale) {
     p = fabs(p);
-    return max(p.x - brush_scale.x, max(p.y - brush_scale.y, p.z - brush_scale.z));
+    return max(p.x - scale.x, max(p.y - scale.y, p.z - scale.z));
 }
 
-float3 get_position(int x, int y, int z, float3 chunk_origin) {
-    const float3 half_dim = 0.5f * (float3)(VM_CHUNK_SIZE + VM_CHUNK_BORDER,
-                                            VM_CHUNK_SIZE + VM_CHUNK_BORDER,
-                                            VM_CHUNK_SIZE + VM_CHUNK_BORDER);
-    return (float)(VM_VOXEL_SIZE) * ((float3)(x, y, z) - half_dim) + chunk_origin;
-}
+#define BRUSH_TYPE ball
+#include "media/kernels/generic_sampler.cl"
+#undef BRUSH_TYPE
 
-#define SAMPLE_IMPL(sdf_function)                                            \
-    do {                                                                     \
-        const int x = get_global_id(0);                                      \
-        const int y = get_global_id(1);                                      \
-        const int z = get_global_id(2);                                      \
-        const float2 old_sample =                                            \
-                read_imagef(input, nearest_sampler, (int4)(x, y, z, 0)).xy;  \
-                                                                             \
-        const float3 p = get_position(x, y, z, chunk_origin) - brush_origin; \
-        const float3 v = mul_mat3_vec3(brush_rotation, p);                   \
-                                                                             \
-        float new_sample = sdf_function(v, brush_scale);                     \
-        int new_material = material_id;                                      \
-        if (operation_type == 0) {                                           \
-            if (new_sample >= old_sample.x) {                                \
-                new_sample = old_sample.x;                                   \
-                new_material = old_sample.y;                                 \
-            }                                                                \
-        } else {                                                             \
-            new_sample = max(-new_sample, old_sample.x);                     \
-            new_material = old_sample.y;                                     \
-        }                                                                    \
-        write_imagef(output, (int4)(x, y, z, 0),                             \
-                     (float4)(new_sample, new_material, 0, 0));              \
-    } while (0)
-
-kernel void sample_ball(read_only image3d_t input,
-                        write_only image3d_t output,
-                        int operation_type,
-                        int material_id,
-                        float3 chunk_origin,
-                        float3 brush_origin,
-                        float3 brush_scale,
-                        mat3 brush_rotation) {
-    SAMPLE_IMPL(ball_sdf);
-}
-
-kernel void sample_cube(read_only image3d_t input,
-                        write_only image3d_t output,
-                        int operation_type,
-                        int material_id,
-                        float3 chunk_origin,
-                        float3 brush_origin,
-                        float3 brush_scale,
-                        mat3 brush_rotation) {
-    SAMPLE_IMPL(cube_sdf);
-}
-
-const sampler_t bilinear_sampler = CLK_NORMALIZED_COORDS_TRUE
-                                   | CLK_ADDRESS_CLAMP_TO_EDGE
-                                   | CLK_FILTER_LINEAR;
-
-/** Downsamples the 3D volume texture using bilinear filtering */
-kernel void downsample(read_only image3d_t input,
-                       write_only image3d_t output,
-                       int input_size) {
-    const int u = get_global_id(0);
-    const int v = get_global_id(1);
-    const int w = get_global_id(2);
-
-    float4 value = (float4)(0, 0, 0, 0);
-    #pragma unroll
-    for (int i = 0; i < 2; ++i) {
-        for (int j = 0; j < 2; ++j) {
-            for (int k = 0; k < 2; ++k) {
-                float4 p = (float4)(2.0f * u + k + 0.5f,
-                                    2.0f * v + j + 0.5f,
-                                    2.0f * w + i + 0.5f, 0)
-                           / input_size;
-                value += read_imagef(input, bilinear_sampler, p);
-            }
-        }
-    }
-    write_imagef(output, (int4)(u, v, w, 0), 0.125f * value);
-}
+#define BRUSH_TYPE cube
+#include "media/kernels/generic_sampler.cl"
+#undef BRUSH_TYPE

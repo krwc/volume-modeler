@@ -7,7 +7,8 @@ namespace vm {
 
 ComputeContext::ComputeContext(MakeSharedEnabler)
     : context(move(compute::opengl_create_shared_context()))
-    , queue(context, context.get_device()) {
+    , queue(context, context.get_device())
+    , ooq(context, context.get_device(), compute::command_queue::enable_out_of_order_execution){
     LOG(info) << "Initialized OpenCL context";
     LOG(info) << "device      : " << context.get_device().name();
     LOG(info) << "vendor      : " << context.get_device().vendor();
