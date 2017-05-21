@@ -130,20 +130,16 @@ void SceneArchive::discover_chunk_coords() {
 
 string SceneArchive::chunk_filename(const shared_ptr<Chunk> &chunk) const {
     return (fs::path(m_workdir) /=
-            fs::path(detail::name_for_coord(chunk->get_coord())))
+            fs::path(detail::name_for_coord(chunk->coord)))
             .string();
 }
 
 SceneArchive::SceneArchive(const string &directory,
-                           const shared_ptr<ComputeContext> &compute_ctx,
-                           const compute::image_format &volume_format)
+                           const shared_ptr<ComputeContext> &compute_ctx)
         : m_workdir(directory),
-          // TODO
-          m_voxel_size(2 * sizeof(uint16_t)),
           m_jobs_mutex(),
           m_jobs(),
           m_compute_ctx(compute_ctx),
-          m_volume_format(volume_format),
           m_thread_pool(2) {
     if (!fs::exists(m_workdir)) {
         fs::create_directory(m_workdir);
@@ -162,6 +158,7 @@ const CoordSet &SceneArchive::get_chunk_coords() const {
 }
 
 void SceneArchive::persist_later(shared_ptr<Chunk> chunk) {
+#if 0
     lock_guard<mutex> jobs_lock(m_jobs_mutex);
     if (m_jobs.find(chunk) != m_jobs.end()) {
         m_thread_pool.cancel(m_jobs.at(chunk));
@@ -208,9 +205,12 @@ void SceneArchive::persist_later(shared_ptr<Chunk> chunk) {
         lock_guard<mutex> jobs_lock(jobs_mutex);
         m_jobs.erase(chunk);
     });
+#endif
+    (void) chunk;
 }
 
 void SceneArchive::restore(shared_ptr<Chunk> chunk) {
+#if 0
     auto data = detail::restore(chunk_filename(chunk), m_voxel_size);
     const size_t N = VM_CHUNK_SIZE + VM_CHUNK_BORDER;
     m_compute_ctx->queue.enqueue_write_image<3>(chunk->get_volume(),
@@ -219,6 +219,8 @@ void SceneArchive::restore(shared_ptr<Chunk> chunk) {
                                                 data.data());
     m_compute_ctx->queue.flush();
     m_compute_ctx->queue.finish();
+#endif
+    (void) chunk;
 }
 
 } // namespace vm

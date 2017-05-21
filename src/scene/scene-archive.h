@@ -27,11 +27,9 @@ typedef std::set<glm::ivec3, detail::ivec3_comparator> CoordSet;
 
 class SceneArchive {
     std::string m_workdir;
-    std::size_t m_voxel_size;
     std::mutex m_jobs_mutex;
     std::map<std::shared_ptr<Chunk>, Job> m_jobs;
     std::shared_ptr<ComputeContext> m_compute_ctx;
-    const compute::image_format m_volume_format;
     ThreadPool m_thread_pool;
     mutable CoordSet m_chunk_coords;
 
@@ -44,8 +42,7 @@ public:
 
     /** Creates / opens an archive at the specified directory */
     SceneArchive(const std::string &directory,
-                 const std::shared_ptr<ComputeContext> &compute_ctx,
-                 const compute::image_format &volume_format);
+                 const std::shared_ptr<ComputeContext> &compute_ctx);
     ~SceneArchive();
     /** Gets the set of chunks available in the archive */
     const CoordSet &get_chunk_coords() const;

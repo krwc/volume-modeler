@@ -51,9 +51,9 @@ void Renderer::init_buffer() {
 void Renderer::init_shaders() {
     m_tex_drawer = Program{};
     m_tex_drawer.set_shader_from_file(GL_VERTEX_SHADER,
-                                      "shaders/texture-vs.glsl");
+                                      "media/shaders/texture-vs.glsl");
     m_tex_drawer.set_shader_from_file(GL_FRAGMENT_SHADER,
-                                      "shaders/texture-fs.glsl");
+                                      "media/shaders/texture-fs.glsl");
     m_tex_drawer.define("SCREEN_WIDTH", to_string(m_width));
     m_tex_drawer.define("SCREEN_HEIGHT", to_string(m_height));
     m_tex_drawer.compile();
@@ -61,19 +61,18 @@ void Renderer::init_shaders() {
 
     m_box_drawer = Program{};
     m_box_drawer.set_shader_from_file(GL_GEOMETRY_SHADER,
-                                      "shaders/box-gs.glsl");
+                                      "media/shaders/box-gs.glsl");
     m_box_drawer.set_shader_from_file(GL_VERTEX_SHADER,
-                                      "shaders/box-vs.glsl");
+                                      "media/shaders/box-vs.glsl");
     m_box_drawer.set_shader_from_file(GL_FRAGMENT_SHADER,
-                                      "shaders/box-fs.glsl");
+                                      "media/shaders/box-fs.glsl");
     m_box_drawer.compile();
     m_box_drawer.link();
 }
 
 void Renderer::init_kernels() {
-    auto program =
-            compute::program::create_with_source_file("kernels/raymarcher.cl",
-                                                      m_compute_ctx->context);
+    auto program = compute::program::create_with_source_file(
+            "media/kernels/raymarcher.cl", m_compute_ctx->context);
     ostringstream options;
     options << " -DSCREEN_WIDTH=" << m_width;
     options << " -DSCREEN_HEIGHT=" << m_height;
@@ -162,7 +161,6 @@ void Renderer::render(const Scene &scene) {
     // Make sure OpenGL finished, or otherwise deadlocks may happen.
     glFlush();
     glFinish();
-
     auto camera = scene.get_camera();
     struct T1 {
         Mat4Repr inv_proj;
@@ -180,6 +178,7 @@ void Renderer::render(const Scene &scene) {
     camera_repr.near = camera->get_near_plane();
     camera_repr.far = camera->get_far_plane();
 
+#if 0
     // TODO: Boost somehow does some craziness when acquiring context (it creates some
     // temporary contexts fuck knows why). Therefore we're using lower-level API to
     // avoid that.
@@ -251,10 +250,12 @@ void Renderer::render(const Scene &scene) {
         m_compute_ctx->queue.flush();
         m_compute_ctx->queue.finish();
     }
-
+#endif
     // Draw frame on the screen
     glClearColor(0.3, 0.3, 0.3, 1.0);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+#if 0
     glBindVertexArray(m_triangle_vao);
     glBindVertexBuffer(0, m_triangle_vbo->id(), 0, sizeof(vec2));
 
@@ -269,6 +270,7 @@ void Renderer::render(const Scene &scene) {
         glBindTextureUnit(2, m_material_array->id());
     }
     glDrawArrays(GL_TRIANGLES, 0, 6);
+#endif
 }
 
 void Renderer::render(const shared_ptr<Camera> &camera, const Box &box) {

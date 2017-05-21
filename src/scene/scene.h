@@ -28,7 +28,6 @@ class Scene {
     std::shared_ptr<Camera> m_camera;
     std::unordered_map<size_t, std::shared_ptr<Chunk>> m_chunks;
 
-    const compute::image_format m_volume_format;
     compute::kernel m_initializer;
     compute::kernel m_downsampler;
     /* Samplers of built-in SDF functions */
@@ -57,6 +56,10 @@ class Scene {
     void sample(const Brush &brush, Operation op);
 
 public:
+    static compute::image_format samples_format();
+    static compute::image_format vertices_format();
+    static compute::image_format edges_format();
+
     Scene(const std::shared_ptr<ComputeContext> &compute_ctx,
           const std::shared_ptr<Camera> &camera,
           const std::string &scene_directory);
