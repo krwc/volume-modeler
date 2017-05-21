@@ -54,17 +54,25 @@ kernel void local_scan(global uint *input,
 }
 
 kernel void fixup_scan(global uint *output,
-                       global const uint *next) {
+                       global const uint *next,
+                       uint size) {
+    const uint index = BLK_SIZE + get_global_id(0);
     local uint value;
     value = next[get_group_id(0)];
     barrier(CLK_LOCAL_MEM_FENCE);
-    output[BLK_SIZE + get_global_id(0)] += value;
+    if (index < size) {
+        output[index] += value;
+    }
 }
+
 )";
 
 namespace {
 static size_t align_to_block_size(size_t input, size_t block_size) {
-    return input + (block_size - input % block_size);
+    if (input % block_size) {
+        return input + (block_size - input % block_size);
+    }
+    return input;
 }
 } // namespace
 
@@ -88,7 +96,7 @@ Scan::Scan(::compute::command_queue &queue,
     size_t num_phases = 0;
     {
         size_t size = m_input_size;
-        while (size >= Scan::BLOCK_SIZE) {
+        while (size > Scan::BLOCK_SIZE) {
             ++num_phases;
             size /= Scan::BLOCK_SIZE;
 
@@ -140,11 +148,13 @@ Scan::Scan(::compute::command_queue &queue,
         for (size_t j = num_fixup_phases - 1; j >= 1; --j) {
             m_fixup_scan.set_arg(0, m_phases[j - 1]);
             m_fixup_scan.set_arg(1, m_phases[j]);
+            m_fixup_scan.set_arg(2, static_cast<cl_uint>(m_phases[j - 1].size()));
             queue.enqueue_1d_range_kernel(
                     m_fixup_scan, 0, m_phases[j - 1].size(), Scan::BLOCK_SIZE);
         }
         m_fixup_scan.set_arg(0, output);
         m_fixup_scan.set_arg(1, m_phases[0]);
+        m_fixup_scan.set_arg(2, static_cast<cl_uint>(output.size()));
         event = queue.enqueue_1d_range_kernel(m_fixup_scan, 0,
                                               m_aligned_size - Scan::BLOCK_SIZE,
                                               Scan::BLOCK_SIZE);
