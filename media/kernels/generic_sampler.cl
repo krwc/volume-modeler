@@ -11,9 +11,9 @@ kernel void MAKE_IMPL(sample, BRUSH_TYPE) (read_only image3d_t samples_in,
     const int y = get_global_id(1);
     const int z = get_global_id(2);
 
-    if (x >= VM_CHUNK_SIZE + 2
-         || y >= VM_CHUNK_SIZE + 2
-         || z >= VM_CHUNK_SIZE + 2) {
+    if (x >= VM_CHUNK_SIZE + 3
+         || y >= VM_CHUNK_SIZE + 3
+         || z >= VM_CHUNK_SIZE + 3) {
         return;
     }
 
@@ -30,4 +30,23 @@ kernel void MAKE_IMPL(sample, BRUSH_TYPE) (read_only image3d_t samples_in,
     }
     write_imagef(samples_out, (int4)(x, y, z, 0),
                  (float4)(new_sample, 0, 0, 0));
+}
+
+#define MAX_BISECTION_STEPS 8
+kernel void MAKE_IMPL(update_edges, BRUSH_TYPE) (read_only image3d_t edges,
+                                                 int axis,
+                                                 float3 chunk_origin,
+                                                 float3 brush_origin,
+                                                 float3 brush_scale,
+                                                 mat3 brush_rotation) {
+    const int x = get_global_id(0);
+    const int y = get_global_id(1);
+    const int z = get_global_id(2);
+
+    if (x >= VM_CHUNK_SIZE + 2
+         || y >= VM_CHUNK_SIZE + 2
+         || z >= VM_CHUNK_SIZE + 2) {
+        return;
+    }
+
 }
