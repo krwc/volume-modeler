@@ -257,7 +257,7 @@ static void report_frametime() {
     ++frame_counter;
     frametime_sum += g_dt;
 
-    if (frame_counter == 600) {
+    if (frametime_sum >= 1000) {
         LOG(debug) << "frametime=" << g_dt << "ms; "
                    << "avg=" << (frametime_sum / frame_counter) << "ms";
         frametime_sum = 0;

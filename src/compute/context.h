@@ -1,6 +1,7 @@
 #ifndef VM_GFX_COMPUTE_CONTEXT_H
 #define VM_GFX_COMPUTE_CONTEXT_H
 
+#undef BOOST_COMPUTE_USE_OFFLINE_CACHE
 #define BOOST_COMPUTE_DEBUG_KERNEL_COMPILATION
 
 #include <GL/glew.h>
@@ -27,7 +28,6 @@ class ComputeContext {
 public:
     compute::context context;
     compute::command_queue queue;
-    compute::command_queue ooq;
     std::mutex queue_mutex;
 
     ComputeContext(MakeSharedEnabler);

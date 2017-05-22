@@ -19,7 +19,6 @@ Sampler::Sampler(const shared_ptr<ComputeContext> &compute_ctx)
     auto program = compute::program::create_with_source_file(
             "media/kernels/samplers.cl", compute_ctx->context);
     ostringstream os;
-    os << " -w";
     os << " -cl-mad-enable";
     os << " -cl-single-precision-constant";
     os << " -cl-fast-relaxed-math";
@@ -44,11 +43,13 @@ compute::event Sampler::sample(const shared_ptr<Chunk> &chunk,
     sampler.set_arg(5, 0.5f * brush.get_scale());
     sampler.set_arg(6, brush.get_rotation());
 
-    const size_t N = VM_CHUNK_SIZE + 2;
+    const size_t N = VM_CHUNK_SIZE + 3;
     lock_guard<mutex> chunk_lock(chunk->lock);
     lock_guard<mutex> queue_lock(m_compute_ctx->queue_mutex);
     compute::event event = m_compute_ctx->queue.enqueue_nd_range_kernel(
-            sampler, 3, nullptr, compute::dim(N, N, N).data(), nullptr);
+            sampler, 3, nullptr,
+            compute::dim(N + 1, N + 1, N + 1).data(),
+            compute::dim(4, 4, 4).data());
     m_compute_ctx->queue.flush();
     return event;
 }

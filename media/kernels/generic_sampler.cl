@@ -11,6 +11,12 @@ kernel void MAKE_IMPL(sample, BRUSH_TYPE) (read_only image3d_t samples_in,
     const int y = get_global_id(1);
     const int z = get_global_id(2);
 
+    if (x >= VM_CHUNK_SIZE + 2
+         || y >= VM_CHUNK_SIZE + 2
+         || z >= VM_CHUNK_SIZE + 2) {
+        return;
+    }
+
     const float old_sample =
             read_imagef(samples_in, nearest_sampler, (int4)(x, y, z, 0)).x;
     const float3 p = vertex_at(x, y, z, chunk_origin) - brush_origin;
