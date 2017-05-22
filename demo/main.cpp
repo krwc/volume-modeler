@@ -270,6 +270,7 @@ int main(int argc, char **argv) {
         LOG(error) << "Usage: " << argv[0] << " [scene-persistence-dir]";
         return 1;
     }
+    setenv("CUDA_CACHE_DISABLE", "1", 1);
     init();
 
     string scene_persistence_dir = "scene";
