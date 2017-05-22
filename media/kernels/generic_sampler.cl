@@ -9,7 +9,7 @@ kernel void MAKE_IMPL(sample, BRUSH_TYPE) (read_only image3d_t samples_in,
                                            mat3 brush_rotation) {
     const int x = get_global_id(0);
     const int y = get_global_id(1);
-    const int z = get_global_id(1);
+    const int z = get_global_id(2);
 
     const float old_sample =
             read_imagef(samples_in, nearest_sampler, (int4)(x, y, z, 0)).x;
