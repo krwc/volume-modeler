@@ -13,21 +13,33 @@
 using namespace std;
 namespace vm {
 namespace dc {
+namespace {
+vector<pair<string, Brush::Id>> supported_brushes() {
+    return {
+        { "BRUSH_BALL", Brush::Id::Ball },
+        { "BRUSH_CUBE", Brush::Id::Cube }
+    };
+}
+} // namespace
 
 Sampler::Sampler(const shared_ptr<ComputeContext> &compute_ctx)
         : m_compute_ctx(compute_ctx) {
-    auto program = compute::program::create_with_source_file(
-            "media/kernels/samplers.cl", compute_ctx->context);
-    ostringstream os;
-    os << " -cl-mad-enable";
-    os << " -cl-single-precision-constant";
-    os << " -cl-fast-relaxed-math";
-    program.build(os.str());
 
-    m_sdf_samplers[static_cast<size_t>(Brush::Id::Cube)].sampler =
-            program.create_kernel("sample_cube");
-    m_sdf_samplers[static_cast<size_t>(Brush::Id::Ball)].sampler =
-            program.create_kernel("sample_ball");
+    for (const auto &supported_brush : supported_brushes()) {
+        auto program = compute::program::create_with_source_file(
+                "media/kernels/samplers.cl", compute_ctx->context);
+        ostringstream os;
+        os << " -cl-mad-enable";
+        os << " -cl-single-precision-constant";
+        os << " -cl-fast-relaxed-math";
+        os << " -D" << supported_brush.first;
+        program.build(os.str());
+
+        m_sdf_samplers.at(static_cast<size_t>(supported_brush.second)).sampler =
+                program.create_kernel("sample");
+        m_sdf_samplers.at(static_cast<size_t>(supported_brush.second)).updater =
+                program.create_kernel("update_edges");
+    }
 }
 
 compute::event Sampler::sample(const shared_ptr<Chunk> &chunk,
