@@ -111,7 +111,7 @@ void Scene::sample(const Brush &brush, dc::Sampler::Operation operation) {
             LOG(trace) << "Created chunk (" << x << ',' << y << ',' << z
                        << "), number of chunks: " << m_chunks.size();
         }
-        m_sampler.sample(m_chunks[coord_hash(coord)], brush, operation);
+        m_sampler.sample(*m_chunks[coord_hash(coord)], brush, operation);
 #if 0
         // Queue this modified chunk to be persisted on the next occassion
         m_archive.persist_later(chunk);

@@ -43,16 +43,14 @@ Sampler::Sampler(const shared_ptr<ComputeContext> &compute_ctx)
     }
 }
 
-void Sampler::sample(const shared_ptr<Chunk> &chunk,
-                     const Brush &brush,
-                     Operation operation) {
+void Sampler::sample(Chunk &chunk, const Brush &brush, Operation operation) {
     compute::kernel &sampler =
             m_sdf_samplers.at(static_cast<size_t>(brush.id())).sampler;
-    const vec3 chunk_origin = Scene::get_chunk_origin(chunk->coord);
+    const vec3 chunk_origin = Scene::get_chunk_origin(chunk.coord);
     const vec3 brush_scale = 0.5f * brush.get_scale();
 
-    sampler.set_arg(0, chunk->samples);
-    sampler.set_arg(1, chunk->samples);
+    sampler.set_arg(0, chunk.samples);
+    sampler.set_arg(1, chunk.samples);
     sampler.set_arg(2, static_cast<cl_int>(operation));
     sampler.set_arg(3, chunk_origin);
     sampler.set_arg(4, brush.get_origin());
@@ -63,7 +61,7 @@ void Sampler::sample(const shared_ptr<Chunk> &chunk,
             m_sdf_samplers.at(static_cast<size_t>(brush.id())).updater;
 
     const size_t N = VM_CHUNK_SIZE;
-    lock_guard<mutex> chunk_lock(chunk->lock);
+    lock_guard<mutex> chunk_lock(chunk.lock);
     lock_guard<mutex> queue_lock(m_compute_ctx->queue_mutex);
     m_compute_ctx->queue.enqueue_nd_range_kernel(
             sampler, 3, nullptr,
@@ -75,7 +73,7 @@ void Sampler::sample(const shared_ptr<Chunk> &chunk,
     updater.set_arg(4, brush_scale);
     updater.set_arg(5, brush.get_rotation());
     for (size_t axis = 0; axis < 3; ++axis) {
-        updater.set_arg(0, (&chunk->edges_x)[axis]);
+        updater.set_arg(0, (&chunk.edges_x)[axis]);
         updater.set_arg(1, static_cast<cl_int>(axis));
 
         m_compute_ctx->queue.enqueue_nd_range_kernel(

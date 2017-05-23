@@ -41,9 +41,7 @@ public:
      * @param brush     Brush to sample.
      * @param operation Type of the operation to perform.
      */
-    void sample(const std::shared_ptr<Chunk> &chunk,
-                const Brush &brush,
-                Operation operation);
+    void sample(Chunk &chunk, const Brush &brush, Operation operation);
 };
 
 } // namespace dc
