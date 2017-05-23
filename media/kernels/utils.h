@@ -1,18 +1,17 @@
 #ifndef UTILS_H
 #define UTILS_H
 
-const sampler_t nearest_sampler = CLK_NORMALIZED_COORDS_FALSE
-                                  | CLK_ADDRESS_CLAMP_TO_EDGE
-                                  | CLK_FILTER_NEAREST;
+constant sampler_t nearest_sampler = CLK_NORMALIZED_COORDS_FALSE
+                                     | CLK_ADDRESS_CLAMP_TO_EDGE
+                                     | CLK_FILTER_NEAREST;
 
-#define CONCAT3(x, y, z) \
-    x ## y ## z
-
-#define FUNCTION_NAME_CONCAT(prefix, type) \
-    CONCAT3(prefix, _, type)
-
-#define MAKE_IMPL(prefix, type) \
-    FUNCTION_NAME_CONCAT(prefix, type)
+/* No typeof() support in core it seems */
+#define swap(type, a, b) \
+    do {                 \
+        type tmp = a;    \
+        a = b;           \
+        b = tmp;         \
+    } while (0)
 
 float3 vertex_at(int x, int y, int z, float3 chunk_origin) {
     // OPTIMIZATION: If chunk_origin were chunk's minimal point, then the coordinates
