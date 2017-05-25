@@ -1,0 +1,2 @@
+kernel void contour() {
+}

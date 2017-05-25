@@ -15,7 +15,6 @@ Chunk::Chunk(const ivec3 &coord,
         , edges_x(context, N+2, N+3, N+3, Scene::edges_format())
         , edges_y(context, N+3, N+2, N+3, Scene::edges_format())
         , edges_z(context, N+3, N+3, N+2, Scene::edges_format())
-        , vertices(context, N+2, N+2, N+2, Scene::vertices_format())
         , lock()
         , coord(coord)
         , lod(lod) {

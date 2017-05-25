@@ -62,11 +62,6 @@ compute::image_format Scene::samples_format() {
                                  compute::image_format::float16);
 }
 
-compute::image_format Scene::vertices_format() {
-    return compute::image_format(compute::image_format::rgb,
-                                 compute::image_format::float16);
-}
-
 compute::image_format Scene::edges_format() {
     return compute::image_format(compute::image_format::rgba,
                                  compute::image_format::float16);
@@ -79,7 +74,8 @@ Scene::Scene(const shared_ptr<ComputeContext> &compute_ctx,
           m_camera(camera),
           m_chunks(),
           m_archive(scene_directory, compute_ctx),
-          m_sampler(compute_ctx) {
+          m_sampler(compute_ctx),
+          m_mesher(compute_ctx) {
     init_persisted_chunks();
 }
 
@@ -111,7 +107,9 @@ void Scene::sample(const Brush &brush, dc::Sampler::Operation operation) {
             LOG(trace) << "Created chunk (" << x << ',' << y << ',' << z
                        << "), number of chunks: " << m_chunks.size();
         }
-        m_sampler.sample(*m_chunks[coord_hash(coord)], brush, operation);
+        Chunk &chunk_ref = *m_chunks[coord_hash(coord)];
+        m_sampler.sample(chunk_ref, brush, operation);
+        m_mesher.contour(chunk_ref);
 #if 0
         // Queue this modified chunk to be persisted on the next occassion
         m_archive.persist_later(chunk);

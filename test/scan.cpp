@@ -12,7 +12,7 @@ struct TestContext {
     std::vector<uint32_t> gpu_scan_result;
     compute::vector<uint32_t> input;
     compute::vector<uint32_t> output;
-    vm::compute::Scan gpu_scan;
+    vm::Scan gpu_scan;
 
     TestContext(compute::context &context,
                 compute::command_queue &queue,

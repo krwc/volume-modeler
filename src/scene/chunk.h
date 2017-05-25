@@ -13,8 +13,6 @@ struct Chunk {
     compute::image3d edges_y;
     compute::image3d edges_z;
 
-    compute::image3d vertices;
-
     std::mutex lock;
     glm::ivec3 coord;
     int lod;

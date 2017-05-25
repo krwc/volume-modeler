@@ -18,6 +18,7 @@
 #include "utils/thread-pool.h"
 
 #include "dc/sampler.h"
+#include "dc/mesher.h"
 
 #include <boost/optional.hpp>
 
@@ -33,6 +34,7 @@ class Scene {
     SceneArchive m_archive;
     /* Dual Contouring related classes */
     dc::Sampler m_sampler;
+    dc::Mesher m_mesher;
 
     void init_persisted_chunks();
 
@@ -50,7 +52,6 @@ public:
     static glm::vec3 get_chunk_origin(const glm::ivec3 &coord);
 
     static compute::image_format samples_format();
-    static compute::image_format vertices_format();
     static compute::image_format edges_format();
 
     Scene(const std::shared_ptr<ComputeContext> &compute_ctx,

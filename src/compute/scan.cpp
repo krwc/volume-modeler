@@ -7,7 +7,6 @@
 using namespace std;
 
 namespace vm {
-namespace compute {
 
 static const char *scan_source = R"(
 void swap_ints(int *a, int *b) {
@@ -76,7 +75,14 @@ static size_t align_to_block_size(size_t input, size_t block_size) {
 }
 } // namespace
 
-Scan::Scan(::compute::command_queue &queue,
+Scan::Scan()
+        : m_input_size(0)
+        , m_aligned_size(0)
+        , m_phases()
+        , m_local_inclusive_scan()
+        , m_fixup_scan() {}
+
+Scan::Scan(compute::command_queue &queue,
            size_t input_size)
         : m_input_size(input_size)
         , m_aligned_size(align_to_block_size(input_size, Scan::BLOCK_SIZE))
@@ -84,7 +90,7 @@ Scan::Scan(::compute::command_queue &queue,
         , m_local_inclusive_scan()
         , m_fixup_scan() {
     {
-        auto program = ::compute::program::create_with_source(scan_source,
+        auto program = compute::program::create_with_source(scan_source,
                                                               queue.get_context());
         std::ostringstream inclusive_opts;
         inclusive_opts << " -DBLK_SIZE=" << Scan::BLOCK_SIZE;
@@ -104,16 +110,16 @@ Scan::Scan(::compute::command_queue &queue,
             const size_t array_size =
                     align_to_block_size(size, Scan::BLOCK_SIZE);
             m_phases.emplace_back(
-                    ::compute::vector<uint32_t>(array_size, 0, queue));
+                    compute::vector<uint32_t>(array_size, 0, queue));
             LOG(trace) << "Allocated buffer for " << array_size
                        << " elements on phase " << num_phases << endl;
         }
     }
 }
 
-::compute::event Scan::inclusive_scan(::compute::vector<uint32_t> &input,
-                                      ::compute::vector<uint32_t> &output,
-                                      ::compute::command_queue &queue) {
+compute::event Scan::inclusive_scan(compute::vector<uint32_t> &input,
+                                    compute::vector<uint32_t> &output,
+                                    compute::command_queue &queue) {
     assert(input.size() == m_input_size);
     assert(output.size() >= m_input_size);
 
@@ -125,7 +131,7 @@ Scan::Scan(::compute::command_queue &queue,
         m_local_inclusive_scan.set_arg(2, NULL);
     }
     m_local_inclusive_scan.set_arg(3, static_cast<cl_uint>(m_input_size));
-    ::compute::event event;
+    compute::event event;
     event = queue.enqueue_1d_range_kernel(m_local_inclusive_scan, 0,
                                           m_aligned_size, Scan::BLOCK_SIZE);
 
@@ -162,5 +168,4 @@ Scan::Scan(::compute::command_queue &queue,
     return event;
 }
 
-} // namespace compute
 } // namespace vm
