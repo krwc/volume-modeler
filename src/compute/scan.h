@@ -35,9 +35,11 @@ public:
      * @param output    Output where scanned prefix-sum will be written.
      * @param queue     Compute queue on which this task will be placed.
      */
-    compute::event inclusive_scan(compute::vector<uint32_t> &input,
-                                  compute::vector<uint32_t> &output,
-                                  compute::command_queue &queue);
+    compute::event
+    inclusive_scan(compute::vector<uint32_t> &input,
+                   compute::vector<uint32_t> &output,
+                   compute::command_queue &queue,
+                   const compute::wait_list &events = compute::wait_list());
 };
 
 } // namespace vm

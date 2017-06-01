@@ -5,6 +5,8 @@
 
 #include "compute/context.h"
 
+#include "gfx/buffer.h"
+
 namespace vm {
 
 struct Chunk {
@@ -12,6 +14,14 @@ struct Chunk {
     compute::image3d edges_x;
     compute::image3d edges_y;
     compute::image3d edges_z;
+
+    Buffer vbo;
+    size_t num_vertices;
+    compute::opengl_buffer cl_vbo;
+
+    Buffer ibo;
+    compute::opengl_buffer cl_ibo;
+    size_t num_indices;
 
     std::mutex lock;
     glm::ivec3 coord;

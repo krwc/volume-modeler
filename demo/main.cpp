@@ -78,22 +78,11 @@ static void init() {
     g_camera->set_origin({0,0,5});
     g_camera->set_aspect_ratio(float(g_window_width) / g_window_height);
 
-    g_compute_ctx = vm::make_compute_context();
+    g_compute_ctx = vm::make_gl_shared_compute_context();
 
     g_renderer = make_unique<vm::Renderer>(g_compute_ctx, g_material_array);
     g_renderer->resize(g_window_width, g_window_height);
     glfwSetScrollCallback(g_window, handle_scroll);
-#if 0
-    vm::BrushCube cube;
-    const int size = 40;
-    for (int z = -size/2; z < size/2; ++z) {
-        for (int x = -size/2; x < size/2; ++x) {
-            const glm::vec3 origin(x, -2, z);
-            cube.set_origin(origin);
-            g_scene->add(cube);
-        }
-    }
-#endif
 }
 
 static void handle_resize() {
@@ -279,7 +268,25 @@ int main(int argc, char **argv) {
     }
     g_scene = make_unique<vm::Scene>(g_compute_ctx, g_camera,
                                      scene_persistence_dir);
+    vm::BrushCube cube;
+    cube.set_rotation(glm::radians(glm::vec3{45.0f, 0.0f, 0.0f}));
+    g_scene->add(cube);
+    cube.set_rotation(glm::radians(glm::vec3{0.0f, 45.0f, 0.0f}));
+    g_scene->add(cube);
+    cube.set_rotation(glm::radians(glm::vec3{0.0f, 0.0f, 45.0f}));
+    g_scene->add(cube);
+#if 0
+    const int size = 20;
+    for (int z = -size/2; z < size/2; ++z) {
+        for (int x = -size/2; x < size/2; ++x) {
+            const glm::vec3 origin(x, -2, z);
+            cube.set_origin(origin);
+            g_scene->add(cube);
+        }
+    }
+#endif
 
+    //glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
     while (!glfwWindowShouldClose(g_window)) {
         using namespace chrono;
         g_dt = duration_cast<microseconds>(g_frametime_end - g_frametime_beg).count() / 1000.0;

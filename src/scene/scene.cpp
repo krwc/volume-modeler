@@ -64,7 +64,7 @@ compute::image_format Scene::samples_format() {
 
 compute::image_format Scene::edges_format() {
     return compute::image_format(compute::image_format::rgba,
-                                 compute::image_format::float16);
+                                 compute::image_format::float32);
 }
 
 Scene::Scene(const shared_ptr<ComputeContext> &compute_ctx,
@@ -85,7 +85,7 @@ vec3 Scene::get_chunk_origin(const ivec3 &coord) {
 
 void Scene::init_chunk(const shared_ptr<Chunk> &chunk) {
     lock_guard<mutex> queue_lock(m_compute_ctx->queue_mutex);
-    const compute::float4_ fill_color(1e5, 0, 0, 0);
+    const compute::float4_ fill_color(1e3, 1e3, 1e3, 1e3);
     m_compute_ctx->queue.enqueue_fill_image<3>(chunk->samples, &fill_color,
                                                compute::dim(0, 0, 0),
                                                chunk->samples.size());

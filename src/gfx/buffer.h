@@ -15,8 +15,8 @@ struct BufferDesc {
 };
 
 class Buffer {
-    boost::optional<BufferDesc> m_desc;
     GLuint m_id;
+    boost::optional<BufferDesc> m_desc;
 
 public:
     Buffer &operator=(const Buffer &) = delete;
@@ -24,6 +24,9 @@ public:
 
     Buffer &operator=(Buffer &&);
     Buffer(Buffer &&);
+
+    /* Creates a NULL buffer */
+    Buffer();
 
     /**
      * Creates buffer of specified @p desc#type and initializes it with @p
@@ -81,7 +84,10 @@ public:
      * @returns current buffer size in bytes
      */
     inline size_t size() const {
-        return m_desc.get().initial_size;
+        if (m_desc) {
+            return m_desc.get().initial_size;
+        }
+        return 0u;
     }
 };
 

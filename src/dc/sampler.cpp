@@ -1,6 +1,7 @@
 #include <config.h>
 
 #include <sstream>
+#include <chrono>
 
 #include "sampler.h"
 
@@ -9,6 +10,8 @@
 #include "scene/brush.h"
 
 #include "compute/interop.h"
+
+#include "utils/log.h"
 
 using namespace std;
 using namespace glm;
@@ -68,19 +71,24 @@ void Sampler::sample(Chunk &chunk, const Brush &brush, Operation operation) {
             compute::dim(N + 4, N + 4, N + 4).data(),
             compute::dim(4, 4, 4).data());
 
+    m_compute_ctx->queue.flush();
+    m_compute_ctx->queue.finish();
+
     updater.set_arg(2, chunk_origin);
     updater.set_arg(3, brush.get_origin());
     updater.set_arg(4, brush_scale);
     updater.set_arg(5, brush.get_rotation());
-    for (size_t axis = 0; axis < 3; ++axis) {
+
+    for (int axis = 0; axis < 3; ++axis) {
         updater.set_arg(0, (&chunk.edges_x)[axis]);
         updater.set_arg(1, static_cast<cl_int>(axis));
-
         m_compute_ctx->queue.enqueue_nd_range_kernel(
                 updater, 3, nullptr,
                 compute::dim(N + 3, N + 3, N + 3).data(),
                 nullptr);
     }
+    m_compute_ctx->queue.flush();
+    m_compute_ctx->queue.finish();
 }
 
 } // namespace dc

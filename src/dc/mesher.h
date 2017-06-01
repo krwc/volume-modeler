@@ -13,24 +13,30 @@ namespace dc {
 class Mesher {
     std::shared_ptr<ComputeContext> m_compute_ctx;
     compute::kernel m_select_active_edges;
-    compute::kernel m_copy_selected;
+    compute::kernel m_clear;
     compute::kernel m_solve_qef;
-    /* Instance per one task that can be run in parallel */
-    Scan m_scan[3];
-    /* Indices of active edges for each axis */
-    compute::vector<uint32_t> m_active_edges[3];
+    Scan m_edges_scan;
+    Scan m_voxels_scan;
+    /* Binary vector for each edge that tells whether an edge is active */
+    compute::vector<uint32_t> m_edge_mask;
+    /* Binary vector for each voxel that tells whether a voxel is active */
+    compute::vector<uint32_t> m_voxel_mask;
+    /* Prefixsums of active edges / voxels */
+    compute::vector<uint32_t> m_scanned_edges;
+    compute::vector<uint32_t> m_scanned_voxels;
     /* Vertices solved by the QEF */
-    compute::vector<cl_float3> m_voxel_vertices;
+    compute::vector<float> m_voxel_vertices;
 
     /* Finally, some geometry generator */
-    compute::kernel m_contour;
+    compute::kernel m_copy_vertices;
+    compute::kernel m_make_indices;
 
     /* A queue where active-edges and qef will be computed */
     compute::command_queue m_unordered_queue;
 
-    void enqueue_get_active_edges(size_t axis);
-    void enqueue_solve_qef();
-    void enqueue_contour();
+    void enqueue_get_active_edges(Chunk &chunk);
+    void enqueue_solve_qef(Chunk &chunk);
+    void enqueue_contour(Chunk &chunk);
 
 public:
     Mesher(const std::shared_ptr<ComputeContext> &compute_ctx);

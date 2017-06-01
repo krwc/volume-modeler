@@ -23,6 +23,7 @@ namespace vm {
 
 class ComputeContext {
     struct MakeSharedEnabler {};
+    friend std::shared_ptr<ComputeContext> make_gl_shared_compute_context();
     friend std::shared_ptr<ComputeContext> make_compute_context();
 
 public:
@@ -30,12 +31,17 @@ public:
     compute::command_queue queue;
     std::mutex queue_mutex;
 
-    ComputeContext(MakeSharedEnabler);
+    ComputeContext(MakeSharedEnabler, bool gl_shared);
 };
 
+inline std::shared_ptr<ComputeContext> make_gl_shared_compute_context() {
+    return std::make_shared<ComputeContext>(ComputeContext::MakeSharedEnabler{},
+                                            true);
+}
+
 inline std::shared_ptr<ComputeContext> make_compute_context() {
-    return std::make_shared<ComputeContext>(
-            ComputeContext::MakeSharedEnabler{});
+    return std::make_shared<ComputeContext>(ComputeContext::MakeSharedEnabler{},
+                                            false);
 }
 
 } // namespace vm

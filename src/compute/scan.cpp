@@ -119,7 +119,8 @@ Scan::Scan(compute::command_queue &queue,
 
 compute::event Scan::inclusive_scan(compute::vector<uint32_t> &input,
                                     compute::vector<uint32_t> &output,
-                                    compute::command_queue &queue) {
+                                    compute::command_queue &queue,
+                                    const compute::wait_list &events) {
     assert(input.size() == m_input_size);
     assert(output.size() >= m_input_size);
 
@@ -133,7 +134,8 @@ compute::event Scan::inclusive_scan(compute::vector<uint32_t> &input,
     m_local_inclusive_scan.set_arg(3, static_cast<cl_uint>(m_input_size));
     compute::event event;
     event = queue.enqueue_1d_range_kernel(m_local_inclusive_scan, 0,
-                                          m_aligned_size, Scan::BLOCK_SIZE);
+                                          m_aligned_size, Scan::BLOCK_SIZE,
+                                          events);
 
     const size_t num_fixup_phases = m_phases.size();
     for (size_t j = 1; j <= num_fixup_phases; ++j) {
@@ -146,8 +148,9 @@ compute::event Scan::inclusive_scan(compute::vector<uint32_t> &input,
         }
         m_local_inclusive_scan.set_arg(3, static_cast<cl_uint>(
                                                   m_phases[j - 1].size()));
-        event = queue.enqueue_1d_range_kernel(
-                m_local_inclusive_scan, 0, m_phases[j - 1].size(), Scan::BLOCK_SIZE);
+        event = queue.enqueue_1d_range_kernel(m_local_inclusive_scan, 0,
+                                              m_phases[j - 1].size(),
+                                              Scan::BLOCK_SIZE, event);
     }
 
     if (num_fixup_phases) {
@@ -155,15 +158,16 @@ compute::event Scan::inclusive_scan(compute::vector<uint32_t> &input,
             m_fixup_scan.set_arg(0, m_phases[j - 1]);
             m_fixup_scan.set_arg(1, m_phases[j]);
             m_fixup_scan.set_arg(2, static_cast<cl_uint>(m_phases[j - 1].size()));
-            queue.enqueue_1d_range_kernel(
-                    m_fixup_scan, 0, m_phases[j - 1].size(), Scan::BLOCK_SIZE);
+            event = queue.enqueue_1d_range_kernel(m_fixup_scan, 0,
+                                                  m_phases[j - 1].size(),
+                                                  Scan::BLOCK_SIZE, event);
         }
         m_fixup_scan.set_arg(0, output);
         m_fixup_scan.set_arg(1, m_phases[0]);
         m_fixup_scan.set_arg(2, static_cast<cl_uint>(output.size()));
         event = queue.enqueue_1d_range_kernel(m_fixup_scan, 0,
                                               m_aligned_size - Scan::BLOCK_SIZE,
-                                              Scan::BLOCK_SIZE);
+                                              Scan::BLOCK_SIZE, event);
     }
     return event;
 }

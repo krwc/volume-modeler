@@ -6,12 +6,13 @@
 
 #include "media/kernels/utils.h"
 
-float sdf_ball(float3 p, float3 scale) {
-    return (length(p / scale) - 1) * min(min(scale.x, scale.y), scale.z);
+float sdf_ball(float3 p, float3 origin, float3 scale, mat3 rotation) {
+    return (length(mul_mat3_float3(rotation, p - origin) / scale) - 1)
+           * min(min(scale.x, scale.y), scale.z);
 }
 
-float sdf_cube(float3 p, float3 scale) {
-    p = fabs(p);
+float sdf_cube(float3 p, float3 origin, float3 scale, mat3 rotation) {
+    p = fabs(mul_mat3_float3(rotation, p - origin));
     return max(p.x - scale.x, max(p.y - scale.y, p.z - scale.z));
 }
 
@@ -20,6 +21,10 @@ float sdf_cube(float3 p, float3 scale) {
 #elif defined(BRUSH_CUBE)
 #define sdf_func sdf_cube
 #endif
+
+constant sampler_t nearest_sampler1 = CLK_NORMALIZED_COORDS_FALSE
+                                     | CLK_ADDRESS_CLAMP_TO_EDGE
+                                     | CLK_FILTER_NEAREST;
 
 kernel void sample(read_only image3d_t samples_in,
                    write_only image3d_t samples_out,
@@ -40,10 +45,9 @@ kernel void sample(read_only image3d_t samples_in,
 
     const float old_sample =
             read_imagef(samples_in, nearest_sampler, (int4)(x, y, z, 0)).x;
-    const float3 p = vertex_at(x, y, z, chunk_origin) - brush_origin;
-    const float3 v = mul_mat3_float3(brush_rotation, p);
 
-    float new_sample = sdf_func(v, brush_scale);
+    float new_sample = sdf_func(vertex_at(x, y, z, chunk_origin), brush_origin,
+                                brush_scale, brush_rotation);
     if (operation_type == 0) {
         new_sample = min(new_sample, old_sample);
     } else {
@@ -53,55 +57,56 @@ kernel void sample(read_only image3d_t samples_in,
                  (float4)(new_sample, 0, 0, 0));
 }
 
-constant int3 axis_offset[3] = {
-    (int3)(1, 0, 0),
-    (int3)(0, 1, 0),
-    (int3)(0, 0, 1)
-};
-
-float3 compute_sdf_normal(float3 p, float3 brush_scale, float epsilon) {
-    const float2 E = (float2)(epsilon, 0);
-    const float dx =
-            sdf_func(p + E.xyy, brush_scale) - sdf_func(p - E.xyy, brush_scale);
-    const float dy =
-            sdf_func(p + E.yxy, brush_scale) - sdf_func(p - E.yxy, brush_scale);
-    const float dz =
-            sdf_func(p + E.yyx, brush_scale) - sdf_func(p - E.yyx, brush_scale);
+float3 compute_sdf_normal(float3 p,
+                          float3 origin,
+                          float3 scale,
+                          mat3 rotation,
+                          float epsilon) {
+    const float2 E = 0.5f * (float2)(epsilon, 0);
+    const float f = sdf_func(p, origin, scale, rotation);
+    const float dx = (sdf_func(p + E.xyy, origin, scale, rotation) - sdf_func(p - E.xyy, origin, scale, rotation)); // epsilon;
+    const float dy = (sdf_func(p + E.yxy, origin, scale, rotation) - sdf_func(p - E.yxy, origin, scale, rotation)); // epsilon;
+    const float dz = (sdf_func(p + E.yyx, origin, scale, rotation) - sdf_func(p - E.yyx, origin, scale, rotation)); // epsilon;
     return normalize((float3)(dx, dy, dz));
 }
 
-#define MAX_BISECTION_STEPS 8
+#define MAX_BISECTION_STEPS 64
 kernel void update_edges(write_only image3d_t edges,
                          int axis,
                          float3 chunk_origin,
                          float3 brush_origin,
                          float3 brush_scale,
                          mat3 brush_rotation) {
-    const int3 xyz0 = (int3)(get_global_id(0),
-                             get_global_id(1),
-                             get_global_id(2));
-    const int3 xyz1 = xyz0 + axis_offset[axis];
+    const int xyz0[3] = { get_global_id(0),
+                          get_global_id(1),
+                          get_global_id(2) };
 #define _N (VM_CHUNK_SIZE + 3)
-    if (xyz1.x >= _N || xyz1.y >= _N || xyz1.z >= _N) {
+    if (xyz0[axis] >= _N - 1) {
+        return;
+    }
+    if (xyz0[0] >= _N || xyz0[1] >= _N || xyz0[2] >= _N) {
         return;
     }
 #undef _N
-    float3 v0 = mul_mat3_float3(brush_rotation,
-                                vertex_at(xyz0.x, xyz0.y, xyz0.z, chunk_origin)
-                                        - brush_origin);
-    float3 v1 = mul_mat3_float3(brush_rotation,
-                                vertex_at(xyz1.x, xyz1.y, xyz1.z, chunk_origin)
-                                        - brush_origin);
-    float s0 = sdf_func(v0, brush_scale);
-    float s1 = sdf_func(v1, brush_scale);
-    if (s0 * s1 >= 0) {
+    const int xyz1[3] = { xyz0[0] + (axis == 0),
+                          xyz0[1] + (axis == 1),
+                          xyz0[2] + (axis == 2) };
+
+    float3 v0 = vertex_at(xyz0[0], xyz0[1], xyz0[2], chunk_origin);
+    float3 v1 = vertex_at(xyz1[0], xyz1[1], xyz1[2], chunk_origin);
+    float s0 = sdf_func(v0, brush_origin, brush_scale, brush_rotation);
+    float s1 = sdf_func(v1, brush_origin, brush_scale, brush_rotation);
+    /* Yes, s0*s1, or otherwise bad things gonna happen */
+    if (s0 * s1 > 0) {
         /* No sign change */
         return;
     }
     /* Swap, so that s0 is always inside and s1 outside the volume */
-    if (s0 > 0) {
+    bool swapped = false;
+    if (s0 > s1) {
         swap(float, s0, s1);
         swap(float3, v0, v1);
+        swapped = true;
     }
 
     float lo = 0.0f;
@@ -113,7 +118,7 @@ kernel void update_edges(write_only image3d_t edges,
     for (int i = 0; i < MAX_BISECTION_STEPS; ++i) {
         mid = 0.5f * (lo + hi);
         point = mix(v0, v1, mid);
-        value = sdf_func(point, brush_scale);
+        value = sdf_func(point, brush_origin, brush_scale, brush_rotation);
 
         if (value > 0) {
             hi = mid;
@@ -123,6 +128,7 @@ kernel void update_edges(write_only image3d_t edges,
             break;
         }
     }
-    const float3 normal = compute_sdf_normal(point, brush_scale, 1e-4);
-    write_imagef(edges, (int4)(xyz0, 0), (float4)(mid, normal));
+    const float3 normal = compute_sdf_normal(point, brush_origin, brush_scale, brush_rotation, 1e-5);
+    write_imagef(edges, (int4)(xyz0[0], xyz0[1], xyz0[2], 0),
+                 (float4)(normal, swapped ? 1 - mid : mid));
 }

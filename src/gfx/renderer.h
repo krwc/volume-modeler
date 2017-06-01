@@ -72,28 +72,20 @@ public:
 class Renderer {
     Program m_tex_drawer;
     Program m_box_drawer;
+    Program m_passthrough;
     std::unique_ptr<Buffer> m_triangle_vbo;
     std::unique_ptr<Buffer> m_shape_vbo;
 
     std::shared_ptr<ComputeContext> m_compute_ctx;
-    std::unique_ptr<Texture2d> m_frame;
-    std::unique_ptr<Texture2d> m_depth;
     std::unique_ptr<TextureArray> m_material_array;
 
-    compute::kernel m_raymarcher;
-    compute::kernel m_initializer;
-    compute::opengl_texture m_cl_depth;
-    compute::opengl_texture m_cl_frame;
-
-    Vao m_triangle_vao;
+    Vao m_geometry_vao;
     Vao m_shape_vao;
     int m_width;
     int m_height;
 
     void init_buffer();
     void init_shaders();
-    void init_kernels();
-    void init_textures();
     void init_materials(const std::vector<std::string> &);
 
 public:

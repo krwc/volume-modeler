@@ -16,9 +16,9 @@ pkg_search_module(ZLIB REQUIRED zlib)
 find_package(Boost REQUIRED COMPONENTS filesystem regex iostreams)
 find_package(Threads REQUIRED)
 
-set(VM_CHUNK_SIZE 80 CACHE STRING "Size of the scene chunk (80 recommended)")
+set(VM_CHUNK_SIZE 64 CACHE STRING "Size of the scene chunk (80 recommended)")
 set(VM_CHUNK_BORDER 2 CACHE STRING "Chunk border improving chunk transitions quality (2 recommended)")
-set(VM_VOXEL_SIZE 0.04 CACHE STRING "Size of the single voxel in chunk (0.02 recommended)")
+set(VM_VOXEL_SIZE 0.02 CACHE STRING "Size of the single voxel in chunk (0.02 recommended)")
 
 option(WITH_TEST "Enables/disables test suite compilation" ON)
 

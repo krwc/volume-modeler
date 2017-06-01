@@ -16,6 +16,8 @@ Buffer &Buffer::operator=(Buffer &&other) {
     return *this;
 }
 
+Buffer::Buffer() : m_id(GL_NONE) {}
+
 Buffer::Buffer(Buffer &&other)
     : m_id(GL_NONE) {
     *this = move(other);
@@ -28,7 +30,9 @@ Buffer::Buffer(const BufferDesc &desc) {
 }
 
 Buffer::~Buffer() {
-    glDeleteBuffers(1, &m_id);
+    if (m_id != GL_NONE) {
+        glDeleteBuffers(1, &m_id);
+    }
 }
 
 void Buffer::fill(const void *data, size_t size) {

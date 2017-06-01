@@ -40,9 +40,9 @@ void Renderer::init_buffer() {
         4096
     });
 
-    glEnableVertexArrayAttrib(m_triangle_vao, 0);
-    glVertexArrayAttribFormat(m_triangle_vao, 0, 2, GL_FLOAT, GL_FALSE, 0u);
-    glVertexArrayAttribBinding(m_triangle_vao, 0, 0);
+    glEnableVertexArrayAttrib(m_geometry_vao, 0);
+    glVertexArrayAttribFormat(m_geometry_vao, 0, 3, GL_FLOAT, GL_FALSE, 0);
+    glVertexArrayAttribBinding(m_geometry_vao, 0, 0);
 
     glEnableVertexArrayAttrib(m_shape_vao, 0);
     glVertexArrayAttribFormat(m_shape_vao, 0, 3, GL_FLOAT, GL_FALSE, 0u);
@@ -50,15 +50,15 @@ void Renderer::init_buffer() {
 }
 
 void Renderer::init_shaders() {
-    m_tex_drawer = Program{};
-    m_tex_drawer.set_shader_from_file(GL_VERTEX_SHADER,
-                                      "media/shaders/texture-vs.glsl");
-    m_tex_drawer.set_shader_from_file(GL_FRAGMENT_SHADER,
-                                      "media/shaders/texture-fs.glsl");
-    m_tex_drawer.define("SCREEN_WIDTH", to_string(m_width));
-    m_tex_drawer.define("SCREEN_HEIGHT", to_string(m_height));
-    m_tex_drawer.compile();
-    m_tex_drawer.link();
+    m_passthrough = Program{};
+    m_passthrough.set_shader_from_file(GL_VERTEX_SHADER,
+                                       "media/shaders/passthrough-vs.glsl");
+    m_passthrough.set_shader_from_file(GL_FRAGMENT_SHADER,
+                                       "media/shaders/passthrough-fs.glsl");
+    m_passthrough.set_shader_from_file(GL_GEOMETRY_SHADER,
+                                       "media/shaders/passthrough-gs.glsl");
+    m_passthrough.compile();
+    m_passthrough.link();
 
     m_box_drawer = Program{};
     m_box_drawer.set_shader_from_file(GL_GEOMETRY_SHADER,
@@ -69,42 +69,6 @@ void Renderer::init_shaders() {
                                       "media/shaders/box-fs.glsl");
     m_box_drawer.compile();
     m_box_drawer.link();
-}
-
-void Renderer::init_kernels() {
-#if 0
-    auto program = compute::program::create_with_source_file(
-            "media/kernels/raymarcher.cl", m_compute_ctx->context);
-    ostringstream options;
-    options << " -DSCREEN_WIDTH=" << m_width;
-    options << " -DSCREEN_HEIGHT=" << m_height;
-    options << " -w";
-    options << " -cl-mad-enable";
-    options << " -cl-single-precision-constant";
-    options << " -cl-fast-relaxed-math";
-    program.build(options.str());
-    m_raymarcher = program.create_kernel("raymarcher");
-    m_initializer = program.create_kernel("initialize");
-#endif
-}
-
-void Renderer::init_textures() {
-    m_frame =
-            make_unique<Texture2d>(TextureDesc2d{ m_width, m_height, GL_RGBA16F });
-    m_frame->set_parameter(GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-    m_frame->set_parameter(GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-    m_frame->clear(0,0,0,0);
-
-    m_depth = make_unique<Texture2d>(
-            TextureDesc2d{ m_width, m_height, GL_R32F });
-    m_depth->set_parameter(GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-    m_depth->set_parameter(GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-    m_depth->clear(1,1,1,1);
-
-    m_cl_frame = compute::opengl_texture(m_compute_ctx->context, GL_TEXTURE_2D,
-                                         0, m_frame->id());
-    m_cl_depth = compute::opengl_texture(m_compute_ctx->context, GL_TEXTURE_2D,
-                                         0, m_depth->id());
 }
 
 void Renderer::init_materials(const vector<string> &materials) {
@@ -140,13 +104,12 @@ void Renderer::init_materials(const vector<string> &materials) {
 Renderer::Renderer(shared_ptr<ComputeContext> ctx,
                    const vector<string> &materials)
     : m_compute_ctx(ctx)
-    , m_triangle_vao()
+    , m_geometry_vao()
     , m_shape_vao()
     , m_width(0)
     , m_height(0) {
     init_buffer();
     init_shaders();
-    init_kernels();
     init_materials(materials);
 
     glEnable(GL_SCISSOR_TEST);
@@ -161,119 +124,25 @@ Renderer::Renderer(shared_ptr<ComputeContext> ctx,
 
 void Renderer::render(const Scene &scene) {
     (void) scene;
-    // Make sure OpenGL finished, or otherwise deadlocks may happen.
-    glFlush();
-    glFinish();
-    auto camera = scene.get_camera();
-    struct T1 {
-        Mat4Repr inv_proj;
-        Mat4Repr inv_view;
-        Vec3Repr origin;
-        cl_float near;
-        cl_float far;
-    } camera_repr;
-
-    const mat4 inv_proj = inverse(camera->get_proj());
-    const mat4 inv_view = inverse(camera->get_view());
-    camera_repr.inv_proj = Mat4Repr(inv_proj);
-    camera_repr.inv_view = Mat4Repr(inv_view);
-    camera_repr.origin = Vec3Repr(camera->get_origin());
-    camera_repr.near = camera->get_near_plane();
-    camera_repr.far = camera->get_far_plane();
-
-#if 0
-    // TODO: Boost somehow does some craziness when acquiring context (it creates some
-    // temporary contexts fuck knows why). Therefore we're using lower-level API to
-    // avoid that.
-    const cl_mem objects_to_acquire[] = {
-        m_cl_frame.get(),
-        m_cl_depth.get()
-    };
-    const size_t num_objects =
-            sizeof(objects_to_acquire) / sizeof(*objects_to_acquire);
-    {
-        lock_guard<mutex> queue_lock(m_compute_ctx->queue_mutex);
-        clEnqueueAcquireGLObjects(m_compute_ctx->queue.get(),
-                                  num_objects,
-                                  objects_to_acquire,
-                                  0,
-                                  nullptr,
-                                  nullptr);
-    }
-    // Clear frame
-    m_initializer.set_arg(0, m_cl_frame);
-    m_initializer.set_arg(1, vec4(0.3, 0.3, 0.3, -1));
-    {
-        lock_guard<mutex> queue_lock(m_compute_ctx->queue_mutex);
-        m_compute_ctx->queue.enqueue_nd_range_kernel(
-                m_initializer, 2, nullptr,
-                compute::dim(m_width, m_height).data(), nullptr);
-    }
-    // Clear depth
-    m_initializer.set_arg(0, m_cl_depth);
-    m_initializer.set_arg(1, vec4(1, 1, 1, 1));
-
-    {
-        lock_guard<mutex> queue_lock(m_compute_ctx->queue_mutex);
-        m_compute_ctx->queue.enqueue_nd_range_kernel(
-                m_initializer, 2, nullptr,
-                compute::dim(m_width, m_height).data(), nullptr);
-    }
-
-    m_raymarcher.set_arg(0, m_cl_frame);
-    m_raymarcher.set_arg(1, m_cl_depth);
-    m_raymarcher.set_arg(2, m_cl_depth);
-    m_raymarcher.set_arg(3, sizeof(camera_repr), &camera_repr);
-
-#warning "TODO: multiple images per job (or not? it was slower when I initially tested it)"
-    for (auto &&chunk : scene.get_chunks_to_render()) {
-        m_raymarcher.set_arg(4, chunk->get_volume());
-        m_raymarcher.set_arg(5, Scene::get_chunk_origin(chunk->get_coord()));
-
-        {
-            lock_guard<mutex> queue_lock(m_compute_ctx->queue_mutex);
-            m_compute_ctx->queue.enqueue_nd_range_kernel(
-                    m_raymarcher,
-                    2,
-                    nullptr,
-                    compute::dim(m_width, m_height).data(),
-                    nullptr);
-        }
-    }
-
-    {
-        lock_guard<mutex> queue_lock(m_compute_ctx->queue_mutex);
-        clEnqueueReleaseGLObjects(m_compute_ctx->queue.get(),
-                                  num_objects,
-                                  objects_to_acquire,
-                                  0,
-                                  nullptr,
-                                  nullptr);
-
-        m_compute_ctx->queue.flush();
-        m_compute_ctx->queue.finish();
-    }
-#endif
     // Draw frame on the screen
     glClearColor(0.3, 0.3, 0.3, 1.0);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-#if 0
-    glBindVertexArray(m_triangle_vao);
-    glBindVertexBuffer(0, m_triangle_vbo->id(), 0, sizeof(vec2));
+    auto camera = scene.get_camera();
 
-    glUseProgram(m_tex_drawer.id());
-    m_tex_drawer.set_constant("inv_proj", inv_proj);
-    m_tex_drawer.set_constant("inv_view", inv_view);
-    m_tex_drawer.set_constant("camera_far", camera->get_far_plane());
-    m_tex_drawer.set_constant("camera_origin", camera->get_origin());
-    glBindTextureUnit(0, m_frame->id());
-    glBindTextureUnit(1, m_depth->id());
-    if (m_material_array) {
-        glBindTextureUnit(2, m_material_array->id());
+    glUseProgram(m_passthrough.id());
+    m_passthrough.set_constant("g_mvp",
+                               camera->get_proj() * camera->get_view());
+
+    glBindVertexArray(m_geometry_vao);
+    for (const auto &chunk : scene.get_chunks_to_render()) {
+        if (!chunk->num_vertices) {
+            continue;
+        }
+        glBindVertexBuffer(0, chunk->vbo.id(), 0, sizeof(vec3));
+        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, chunk->ibo.id());
+        glDrawElements(GL_TRIANGLES, chunk->num_indices, GL_UNSIGNED_INT, 0u);
     }
-    glDrawArrays(GL_TRIANGLES, 0, 6);
-#endif
 }
 
 void Renderer::render(const shared_ptr<Camera> &camera, const Box &box) {
@@ -282,7 +151,6 @@ void Renderer::render(const shared_ptr<Camera> &camera, const Box &box) {
     m_box_drawer.set_constant("box_transform", box.transform);
     m_box_drawer.set_constant("proj", camera->get_proj());
     m_box_drawer.set_constant("view", camera->get_view());
-    m_box_drawer.set_constant("camera_far_plane", camera->get_far_plane());
 
     const vec3 origin = 0.5f * (box.max + box.min);
     m_shape_vbo->update(&origin, sizeof(origin), 0);
@@ -299,8 +167,6 @@ void Renderer::resize(int screen_width, int screen_height) {
     glViewport(0, 0, m_width, m_height);
     glScissor(0, 0, m_width, m_height);
     init_shaders();
-    init_kernels();
-    init_textures();
 }
 
 } // namespace vm
