@@ -140,6 +140,13 @@ static void handle_keyboard() {
     if (glfwGetKey(g_window, GLFW_KEY_2) == GLFW_PRESS) {
         g_brush_id = 1;
     }
+    if (glfwGetKey(g_window, GLFW_KEY_F1) == GLFW_PRESS) {
+        glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+    }
+    if (glfwGetKey(g_window, GLFW_KEY_F2) == GLFW_PRESS) {
+        glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+    }
+
 
     g_camera->set_origin(g_camera->get_origin() + accel * inv_rotation * translation);
 }
@@ -286,7 +293,6 @@ int main(int argc, char **argv) {
     }
 #endif
 
-    //glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
     while (!glfwWindowShouldClose(g_window)) {
         using namespace chrono;
         g_dt = duration_cast<microseconds>(g_frametime_end - g_frametime_beg).count() / 1000.0;

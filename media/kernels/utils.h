@@ -22,12 +22,14 @@ bool active_edge(float s0, float s1) {
     } while (0)
 
 float3 vertex_at(int x, int y, int z, float3 chunk_origin) {
-    // OPTIMIZATION: If chunk_origin were chunk's minimal point, then the coordinates
-    // of the vertex would be obtainable via single MAD: chunk_origin + VOXEL_SIZE * xyz
-    const float3 half_dim = 0.5f * (float3)(VM_CHUNK_SIZE + 3,
-                                            VM_CHUNK_SIZE + 3,
-                                            VM_CHUNK_SIZE + 3);
-    return (float)(VM_VOXEL_SIZE) * ((float3)(x, y, z) - half_dim) + chunk_origin;
+    // OPTIMIZATION: If chunk_origin were chunk's minimal point, then the
+    // coordinates of the vertex would be obtainable via single MAD:
+    // chunk_origin + VOXEL_SIZE * xyz
+    const float3 half_dim =
+            0.5f
+            * (float3)(VM_CHUNK_SIZE + 3, VM_CHUNK_SIZE + 3, VM_CHUNK_SIZE + 3);
+    return (float) (VM_VOXEL_SIZE) * ((float3)(x, y, z) - half_dim)
+           + chunk_origin;
 }
 
 typedef struct {

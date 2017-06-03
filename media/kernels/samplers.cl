@@ -22,10 +22,6 @@ float sdf_cube(float3 p, float3 origin, float3 scale, mat3 rotation) {
 #define sdf_func sdf_cube
 #endif
 
-constant sampler_t nearest_sampler1 = CLK_NORMALIZED_COORDS_FALSE
-                                     | CLK_ADDRESS_CLAMP_TO_EDGE
-                                     | CLK_FILTER_NEAREST;
-
 kernel void sample(read_only image3d_t samples_in,
                    write_only image3d_t samples_out,
                    int operation_type,
@@ -62,15 +58,18 @@ float3 compute_sdf_normal(float3 p,
                           float3 scale,
                           mat3 rotation,
                           float epsilon) {
-    const float2 E = 0.5f * (float2)(epsilon, 0);
+    const float2 E = (float2)(epsilon, 0);
     const float f = sdf_func(p, origin, scale, rotation);
-    const float dx = (sdf_func(p + E.xyy, origin, scale, rotation) - sdf_func(p - E.xyy, origin, scale, rotation)); // epsilon;
-    const float dy = (sdf_func(p + E.yxy, origin, scale, rotation) - sdf_func(p - E.yxy, origin, scale, rotation)); // epsilon;
-    const float dz = (sdf_func(p + E.yyx, origin, scale, rotation) - sdf_func(p - E.yyx, origin, scale, rotation)); // epsilon;
+    const float dx = sdf_func(p + E.xyy, origin, scale, rotation)
+                     - sdf_func(p - E.xyy, origin, scale, rotation);
+    const float dy = sdf_func(p + E.yxy, origin, scale, rotation)
+                     - sdf_func(p - E.yxy, origin, scale, rotation);
+    const float dz = sdf_func(p + E.yyx, origin, scale, rotation)
+                     - sdf_func(p - E.yyx, origin, scale, rotation);
     return normalize((float3)(dx, dy, dz));
 }
 
-#define MAX_BISECTION_STEPS 64
+#define MAX_BISECTION_STEPS 16
 kernel void update_edges(write_only image3d_t edges,
                          int axis,
                          float3 chunk_origin,

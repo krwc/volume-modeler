@@ -5,20 +5,20 @@
 
 constant int edge_vertex[12][2] = {
     // x, y, x, y
-    { 0, 4 },
-    { 4, 6 },
-    { 2, 6 },
-    { 2, 0 },
+    { 0, 4 },       // (0,0,0) <-> (1,0,0)
+    { 4, 6 },       // (1,0,0) <-> (1,1,0)
+    { 2, 6 },       // (0,1,0) <-> (1,1,0)
+    { 0, 2 },       // (0,0,0) <-> (0,1,0)
     // x, y, x, y
-    { 1, 5 },
-    { 5, 7 },
-    { 3, 7 },
-    { 1, 3 },
+    { 1, 5 },       // (0,0,1) <-> (1,0,1)
+    { 5, 7 },       // (1,0,1) <-> (1,1,1)
+    { 3, 7 },       // (0,1,1) <-> (1,1,1)
+    { 1, 3 },       // (0,0,1) <-> (0,1,1)
     // z, z, z, z
-    { 0, 1 },
-    { 4, 5 },
-    { 6, 7 },
-    { 2, 3 }
+    { 0, 1 },       // (0,0,0) <-> (0,0,1)
+    { 4, 5 },       // (1,0,0) <-> (1,0,1)
+    { 6, 7 },       // (1,1,0) <-> (1,1,1)
+    { 2, 3 }        // (0,1,0) <-> (0,1,1)
 };
 
 constant int edge_axis[12] = {
@@ -78,7 +78,7 @@ bool is_edge_active(float samples[2][2][2], int edge) {
     return active_edge(s0, s1);
 }
 
-#define MAX_ITERATIONS 128
+#define MAX_ITERATIONS 64
 float4 iterative_qef(const float4 position[12],
                      const float4 normal[12],
                      uint count) {
@@ -96,7 +96,7 @@ float4 iterative_qef(const float4 position[12],
             p = position[j];
             F += dot(n, p - m) * n;
         }
-        F *= 0.8f * (1.0f - (float) i / MAX_ITERATIONS) / count;
+        F *= (1.0f - (float) i / MAX_ITERATIONS) / count;
         m += F;
 
         if (dot(F, F) < 1e-9) {

@@ -32,12 +32,7 @@ Sampler::Sampler(const shared_ptr<ComputeContext> &compute_ctx)
     for (const auto &supported_brush : supported_brushes()) {
         auto program = compute::program::create_with_source_file(
                 "media/kernels/samplers.cl", compute_ctx->context);
-        ostringstream os;
-        os << " -cl-mad-enable";
-        os << " -cl-single-precision-constant";
-        os << " -cl-fast-relaxed-math";
-        os << " -D" << supported_brush.first;
-        program.build(os.str());
+        program.build("-D" + supported_brush.first);
 
         m_sdf_samplers.at(static_cast<size_t>(supported_brush.second)).sampler =
                 program.create_kernel("sample");

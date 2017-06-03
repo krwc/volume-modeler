@@ -34,7 +34,9 @@ class Mesher {
     /* A queue where active-edges and qef will be computed */
     compute::command_queue m_unordered_queue;
 
-    void enqueue_get_active_edges(Chunk &chunk);
+    void init_buffers();
+    void init_kernels();
+    void enqueue_select_edges(Chunk &chunk);
     void enqueue_solve_qef(Chunk &chunk);
     void enqueue_contour(Chunk &chunk);
 
