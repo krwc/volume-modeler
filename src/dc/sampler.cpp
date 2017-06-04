@@ -10,6 +10,7 @@
 #include "scene/brush.h"
 
 #include "compute/interop.h"
+#include "compute/utils.h"
 
 #include "utils/log.h"
 
@@ -46,41 +47,37 @@ void Sampler::sample(Chunk &chunk, const Brush &brush, Operation operation) {
             m_sdf_samplers.at(static_cast<size_t>(brush.id())).sampler;
     const vec3 chunk_origin = Scene::get_chunk_origin(chunk.coord);
     const vec3 brush_scale = 0.5f * brush.get_scale();
+    const vec3 brush_origin = brush.get_origin();
+    const mat3 brush_rotation = brush.get_rotation();
 
     sampler.set_arg(0, chunk.samples);
     sampler.set_arg(1, chunk.samples);
     sampler.set_arg(2, static_cast<cl_int>(operation));
     sampler.set_arg(3, chunk_origin);
-    sampler.set_arg(4, brush.get_origin());
+    sampler.set_arg(4, brush_origin);
     sampler.set_arg(5, brush_scale);
-    sampler.set_arg(6, brush.get_rotation());
+    sampler.set_arg(6, brush_rotation);
 
     compute::kernel &updater =
             m_sdf_samplers.at(static_cast<size_t>(brush.id())).updater;
 
     const size_t N = VM_CHUNK_SIZE;
-    lock_guard<mutex> chunk_lock(chunk.lock);
-    lock_guard<mutex> queue_lock(m_compute_ctx->queue_mutex);
-    m_compute_ctx->queue.enqueue_nd_range_kernel(
-            sampler, 3, nullptr,
-            compute::dim(N + 4, N + 4, N + 4).data(),
-            compute::dim(4, 4, 4).data());
-
-    m_compute_ctx->queue.flush();
-    m_compute_ctx->queue.finish();
+    enqueue_auto_distributed_nd_range_kernel<3>(
+            m_compute_ctx->queue, sampler, compute::dim(N + 3, N + 3, N + 3))
+            .wait();
 
     updater.set_arg(2, chunk_origin);
-    updater.set_arg(3, brush.get_origin());
+    updater.set_arg(3, brush_origin);
     updater.set_arg(4, brush_scale);
-    updater.set_arg(5, brush.get_rotation());
+    updater.set_arg(5, brush_rotation);
 
+    // TODO: Either this should be run in a single kernel or at unordered queue
     for (int axis = 0; axis < 3; ++axis) {
         updater.set_arg(0, (&chunk.edges_x)[axis]);
         updater.set_arg(1, static_cast<cl_int>(axis));
-        m_compute_ctx->queue.enqueue_nd_range_kernel(
-                updater, 3, nullptr,
-                compute::dim(N + 3, N + 3, N + 3).data(),
-                nullptr);
+        enqueue_auto_distributed_nd_range_kernel<3>(
+                m_compute_ctx->queue, updater,
+                compute::dim(N + 3, N + 3, N + 3));
     }
     m_compute_ctx->queue.flush();
     m_compute_ctx->queue.finish();

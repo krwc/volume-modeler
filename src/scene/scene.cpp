@@ -108,6 +108,8 @@ void Scene::sample(const Brush &brush, dc::Sampler::Operation operation) {
                        << "), number of chunks: " << m_chunks.size();
         }
         Chunk &chunk_ref = *m_chunks[coord_hash(coord)];
+        lock_guard<mutex> chunk_lock(chunk_ref.lock);
+        lock_guard<mutex> queue_lock(m_compute_ctx->queue_mutex);
         m_sampler.sample(chunk_ref, brush, operation);
         m_mesher.contour(chunk_ref);
 #if 0

@@ -3,6 +3,7 @@
 #include "mesher.h"
 
 #include "compute/interop.h"
+#include "compute/utils.h"
 
 #include "scene/scene.h"
 #include "scene/chunk.h"
@@ -83,9 +84,11 @@ void Mesher::enqueue_select_edges(Chunk &chunk) {
     // Mark active edges
     m_select_active_edges.set_arg(0, m_edge_mask);
     m_select_active_edges.set_arg(1, chunk.samples);
-    const size_t size[3] = { N + 3, N + 3, N + 3};
-    auto event = m_unordered_queue.enqueue_nd_range_kernel(
-            m_select_active_edges, 3, nullptr, size, nullptr);
+
+    auto event = enqueue_auto_distributed_nd_range_kernel<3>(
+            m_unordered_queue, m_select_active_edges,
+            compute::dim(N + 3, N + 3, N + 3));
+
     // Count them
     m_edges_scan.inclusive_scan(m_edge_mask, m_scanned_edges, m_unordered_queue,
                                 event);
@@ -100,12 +103,9 @@ void Mesher::enqueue_solve_qef(Chunk &chunk) {
     m_solve_qef.set_arg(5, m_voxel_vertices);
     m_solve_qef.set_arg(6, m_voxel_mask);
 
-    static const size_t size[3] = { VM_CHUNK_SIZE + 2,
-                                    VM_CHUNK_SIZE + 2,
-                                    VM_CHUNK_SIZE + 2 };
-    auto event =
-            m_unordered_queue.enqueue_nd_range_kernel(m_solve_qef, 3, nullptr,
-                                                      size, nullptr);
+    auto event = enqueue_auto_distributed_nd_range_kernel<3>(
+            m_unordered_queue, m_solve_qef, compute::dim(N + 2, N + 2, N + 2));
+
     // Count active voxels
     m_voxels_scan.inclusive_scan(m_voxel_mask, m_scanned_voxels,
                                  m_unordered_queue, event);
@@ -168,8 +168,9 @@ void Mesher::enqueue_contour(Chunk &chunk) {
     m_copy_vertices.set_arg(1, m_voxel_vertices);
     m_copy_vertices.set_arg(2, m_voxel_mask);
     m_copy_vertices.set_arg(3, m_scanned_voxels);
-    m_compute_ctx->queue.enqueue_1d_range_kernel(
-            m_copy_vertices, 0, (N + 2) * (N + 2) * (N + 2), 0);
+    enqueue_auto_distributed_nd_range_kernel<1>(
+            m_compute_ctx->queue, m_copy_vertices,
+            compute::dim((N + 2) * (N + 2) * (N + 2)));
 
     clEnqueueReleaseGLObjects(m_compute_ctx->queue.get(), 1,
                               &chunk.cl_vbo.get(), 0, nullptr, nullptr);
@@ -185,9 +186,9 @@ void Mesher::enqueue_contour(Chunk &chunk) {
     m_make_indices.set_arg(2, m_scanned_edges);
     m_make_indices.set_arg(3, m_scanned_voxels);
     m_make_indices.set_arg(4, chunk.samples);
-
-    m_compute_ctx->queue.enqueue_1d_range_kernel(
-            m_make_indices, 0, 3 * (N + 3) * (N + 3) * (N + 3), 0);
+    enqueue_auto_distributed_nd_range_kernel<1>(
+            m_compute_ctx->queue, m_make_indices,
+            compute::dim(3 * (N + 3) * (N + 3) * (N + 3)));
 
     clEnqueueReleaseGLObjects(m_compute_ctx->queue.get(), 1,
                               &chunk.cl_ibo.get(), 0, nullptr, nullptr);
