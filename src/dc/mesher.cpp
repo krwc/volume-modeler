@@ -19,7 +19,7 @@ void Mesher::init_buffers() {
     // Actually this is a bit too much than it needs to be, because the
     // regular grid of (N+2) voxels has 3 * (N+2)*(N+3)*(N+3) edges.
     //
-    // Allocating a bigger buffer makes compute kernel easier to write
+    // Allocating a bigger buffer makes compute kernels easier to write
     // though.
     const size_t num_edges = 3 * ((N + 3) * (N + 3) * (N + 3));
     m_edges_scan = move(Scan(m_compute_ctx->queue, num_edges));
@@ -50,7 +50,6 @@ void Mesher::init_kernels() {
         program.build();
 
         m_select_active_edges = program.create_kernel("select_active_edges");
-        m_clear = program.create_kernel("clear");
     }
 
     {

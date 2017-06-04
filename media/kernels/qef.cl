@@ -3,6 +3,7 @@
 
 #include "media/kernels/utils.h"
 
+/* NOTE: The numbers are actually bitmasks */
 constant int edge_vertex[12][2] = {
     // x, y, x, y
     { 0, 4 },       // (0,0,0) <-> (1,0,0)
@@ -54,9 +55,12 @@ float4 edge_data(read_only image3d_t edges_x,
                              0);
     switch (edge_axis[edge]) {
     default:
-    case 0: return read_imagef(edges_x, nearest_sampler, xyzw);
-    case 1: return read_imagef(edges_y, nearest_sampler, xyzw);
-    case 2: return read_imagef(edges_z, nearest_sampler, xyzw);
+    case 0:
+        return read_imagef(edges_x, nearest_sampler, xyzw);
+    case 1:
+        return read_imagef(edges_y, nearest_sampler, xyzw);
+    case 2:
+        return read_imagef(edges_z, nearest_sampler, xyzw);
     }
 }
 
@@ -116,11 +120,11 @@ kernel void solve_qef(read_only image3d_t samples,
     const int x = get_global_id(0);
     const int y = get_global_id(1);
     const int z = get_global_id(2);
-    if (x >= VM_CHUNK_SIZE + 2
-           || y >= VM_CHUNK_SIZE + 2
-           || z >= VM_CHUNK_SIZE + 2) {
+    if (!IS_EXTENDED_VOXEL_COORD(x, y, z)) {
         return;
     }
+    /* Each sample in a voxel will be accessed more than once, so it makes
+       sense to not fetch it from the global memory every time. */
     float values[2][2][2];
     for (int k = 0; k < 2; ++k) {
         for (int j = 0; j < 2; ++j) {
@@ -129,11 +133,7 @@ kernel void solve_qef(read_only image3d_t samples,
             }
         }
     }
-    float4 vertex = (float4)(0, 0, 0, 0);
-    int active_edges = 0;
-
-    const uint index = x + (VM_CHUNK_SIZE + 2) * (y + (VM_CHUNK_SIZE + 2) * z);
-
+    uint active_edges = 0;
     float4 positions[12];
     float4 normals[12];
 
@@ -148,13 +148,14 @@ kernel void solve_qef(read_only image3d_t samples,
         }
     }
 
+    const uint index =
+            x + DIM_EXTENDED_VOXEL_GRID * (y + DIM_EXTENDED_VOXEL_GRID * z);
+
     if (active_edges > 0) {
-        vertex = iterative_qef(positions, normals, active_edges);
+        const float4 vertex = iterative_qef(positions, normals, active_edges);
         voxel_vertices[3 * index + 0] = vertex.x;
         voxel_vertices[3 * index + 1] = vertex.y;
         voxel_vertices[3 * index + 2] = vertex.z;
-        voxel_mask[index] = 1;
-    } else {
-        voxel_mask[index] = 0;
     }
+    voxel_mask[index] = !!active_edges;
 }

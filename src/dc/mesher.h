@@ -13,7 +13,6 @@ namespace dc {
 class Mesher {
     std::shared_ptr<ComputeContext> m_compute_ctx;
     compute::kernel m_select_active_edges;
-    compute::kernel m_clear;
     compute::kernel m_solve_qef;
     Scan m_edges_scan;
     Scan m_voxels_scan;

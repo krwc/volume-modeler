@@ -22,6 +22,9 @@ float sdf_cube(float3 p, float3 origin, float3 scale, mat3 rotation) {
 #define sdf_func sdf_cube
 #endif
 
+#define OPERATION_ADD 0
+#define OPERATION_SUB 1
+
 kernel void sample(read_only image3d_t samples_in,
                    write_only image3d_t samples_out,
                    int operation_type,
@@ -33,21 +36,23 @@ kernel void sample(read_only image3d_t samples_in,
     const int y = get_global_id(1);
     const int z = get_global_id(2);
 
-#define _N (VM_CHUNK_SIZE + 3)
-    if (x >= _N || y >= _N || z >= _N) {
+    if (!IS_SAMPLE_COORD(x, y, z)) {
         return;
     }
-#undef _N
 
     const float old_sample =
             read_imagef(samples_in, nearest_sampler, (int4)(x, y, z, 0)).x;
 
     float new_sample = sdf_func(vertex_at(x, y, z, chunk_origin), brush_origin,
                                 brush_scale, brush_rotation);
-    if (operation_type == 0) {
+    switch (operation_type) {
+    default:
+    case OPERATION_ADD:
         new_sample = min(new_sample, old_sample);
-    } else {
+        break;
+    case OPERATION_SUB:
         new_sample = max(-new_sample, old_sample);
+        break;
     }
     write_imagef(samples_out, (int4)(x, y, z, 0),
                  (float4)(new_sample, 0, 0, 0));
@@ -76,26 +81,26 @@ kernel void update_edges(write_only image3d_t edges,
                          float3 brush_origin,
                          float3 brush_scale,
                          mat3 brush_rotation) {
-    const int xyz0[3] = { get_global_id(0),
-                          get_global_id(1),
-                          get_global_id(2) };
-#define _N (VM_CHUNK_SIZE + 3)
-    if (xyz0[axis] >= _N - 1) {
-        return;
-    }
-    if (xyz0[0] >= _N || xyz0[1] >= _N || xyz0[2] >= _N) {
-        return;
-    }
-#undef _N
-    const int xyz1[3] = { xyz0[0] + (axis == 0),
-                          xyz0[1] + (axis == 1),
-                          xyz0[2] + (axis == 2) };
+    /* Minimal edge endpoint */
+    const int x0 = get_global_id(0);
+    const int y0 = get_global_id(1);
+    const int z0 = get_global_id(2);
 
-    float3 v0 = vertex_at(xyz0[0], xyz0[1], xyz0[2], chunk_origin);
-    float3 v1 = vertex_at(xyz1[0], xyz1[1], xyz1[2], chunk_origin);
+    if (!IS_EDGE_COORD(x0, y0, z0, axis)) {
+        return;
+    }
+    /* Maximal edge endpoint */
+    const int x1 = get_global_id(0) + (axis == 0);
+    const int y1 = get_global_id(1) + (axis == 1);
+    const int z1 = get_global_id(2) + (axis == 2);
+
+    float3 v0 = vertex_at(x0, y0, z0, chunk_origin);
+    float3 v1 = vertex_at(x1, y1, z1, chunk_origin);
     float s0 = sdf_func(v0, brush_origin, brush_scale, brush_rotation);
     float s1 = sdf_func(v1, brush_origin, brush_scale, brush_rotation);
-    /* Yes, s0*s1, or otherwise bad things gonna happen */
+
+    /* This must be weaker than active_edge() or otherwise SDF subtraction
+       won't work. */
     if (s0 * s1 > 0) {
         /* No sign change */
         return;
@@ -112,7 +117,7 @@ kernel void update_edges(write_only image3d_t edges,
     float hi = 1.0f;
     float mid = 0.0f;
     float value;
-    float3 point = (float3)(0, 0, 0);
+    float3 point;
 
     for (int i = 0; i < MAX_BISECTION_STEPS; ++i) {
         mid = 0.5f * (lo + hi);
@@ -127,7 +132,10 @@ kernel void update_edges(write_only image3d_t edges,
             break;
         }
     }
-    const float3 normal = compute_sdf_normal(point, brush_origin, brush_scale, brush_rotation, 1e-5);
-    write_imagef(edges, (int4)(xyz0[0], xyz0[1], xyz0[2], 0),
-                 (float4)(normal, swapped ? 1 - mid : mid));
+    if (swapped) {
+        mid = 1 - mid;
+    }
+    const float3 normal = compute_sdf_normal(point, brush_origin, brush_scale,
+                                             brush_rotation, 1e-5);
+    write_imagef(edges, (int4)(x0, y0, z0, 0), (float4)(normal, mid));
 }

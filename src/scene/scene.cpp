@@ -64,7 +64,7 @@ compute::image_format Scene::samples_format() {
 
 compute::image_format Scene::edges_format() {
     return compute::image_format(compute::image_format::rgba,
-                                 compute::image_format::float32);
+                                 compute::image_format::float16);
 }
 
 Scene::Scene(const shared_ptr<ComputeContext> &compute_ctx,
