@@ -64,60 +64,6 @@ static void write_header(ofstream &file) {
          <= static_cast<double>(VM_VOXEL_SIZE);
     // clang-format on
 }
-#if 0
-static unique_ptr<ofstream> make_persist_stream(const string &filename) {
-    using namespace boost::iostreams;
-    unique_ptr<ofstream> file = make_unique<ofstream>();
-    file->exceptions(ofstream::failbit | ofstream::badbit);
-    file->open(filename, ofstream::out | ofstream::binary);
-    return file;
-}
-
-static void persist(const unique_ptr<ofstream> &stream, const vector<uint8_t> &data) {
-
-}
-
-static void append(const string &filename, const vector<uint8_t> &data) {
-    using namespace boost::iostreams;
-    ofstream file;
-    file.exceptions(ofstream::failbit | ofstream::badbit);
-    file.open(filename, ofstream::out | ofstream::binary | ofstream::append);
-
-}
-
-static void persist(const string &filename, const vector<uint8_t> &data) {
-    using namespace boost::iostreams;
-    ofstream file;
-    file.exceptions(ofstream::failbit | ofstream::badbit);
-    file.open(filename, ofstream::out | ofstream::binary);
-    write_header(file);
-    filtering_streambuf<output> out;
-    out.push(zlib_compressor());
-    out.push(file);
-    boost::iostreams::write(out, reinterpret_cast<const char *>(data.data()),
-                            data.size());
-
-    LOG(trace) << "Persisted " << filename;
-}
-
-static vector<uint8_t> restore(const string &filename, size_t voxel_size) {
-    using namespace boost::iostreams;
-    fstream file;
-    file.exceptions(fstream::failbit | fstream::badbit);
-    file.open(filename, fstream::in | fstream::binary);
-    validate_header(file);
-    filtering_streambuf<input> in;
-    in.push(zlib_decompressor());
-    in.push(file);
-
-    const size_t N = VM_CHUNK_SIZE + VM_CHUNK_BORDER;
-    vector<uint8_t> data(voxel_size * N * N * N);
-    boost::iostreams::read(in, reinterpret_cast<char *>(&data[0]), data.size());
-
-    LOG(trace) << "Restored " << filename;
-    return data;
-}
-#endif
 
 static string name_for_coord(const ivec3 &coord) {
     return boost::str(boost::format("chunk_%1%_%2%_%3%.gz") % coord.x % coord.y
