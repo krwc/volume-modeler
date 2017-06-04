@@ -32,15 +32,12 @@ size_t chunk_hash(const shared_ptr<Chunk> &chunk) {
 } // namespace
 
 void Scene::init_persisted_chunks() {
-#if 0
     for (const ivec3 &coord : m_archive.get_chunk_coords()) {
-        auto chunk = m_chunks.emplace(coord_hash(coord),
-                                      make_shared<Chunk>(coord,
-                                                         m_compute_ctx->context);
-                             .first->second;
+        auto chunk = make_shared<Chunk>(coord, m_compute_ctx->context);
+        m_chunks.emplace(chunk_hash(chunk), chunk);
         m_archive.restore(chunk);
+        m_mesher.contour(*chunk);
     }
-#endif
 }
 
 void Scene::get_covered_region(const AABB &aabb,
@@ -107,15 +104,16 @@ void Scene::sample(const Brush &brush, dc::Sampler::Operation operation) {
             LOG(trace) << "Created chunk (" << x << ',' << y << ',' << z
                        << "), number of chunks: " << m_chunks.size();
         }
-        Chunk &chunk_ref = *m_chunks[coord_hash(coord)];
-        lock_guard<mutex> chunk_lock(chunk_ref.lock);
-        lock_guard<mutex> queue_lock(m_compute_ctx->queue_mutex);
-        m_sampler.sample(chunk_ref, brush, operation);
-        m_mesher.contour(chunk_ref);
-#if 0
+        auto chunk = m_chunks[coord_hash(coord)];
+        {
+            lock_guard<mutex> chunk_lock(chunk->lock);
+            lock_guard<mutex> queue_lock(m_compute_ctx->queue_mutex);
+            m_sampler.sample(*chunk, brush, operation);
+            m_mesher.contour(*chunk);
+        }
+
         // Queue this modified chunk to be persisted on the next occassion
         m_archive.persist_later(chunk);
-#endif
     }}}
     lock_guard<mutex> queue_lock(m_compute_ctx->queue_mutex);
     m_compute_ctx->queue.finish();

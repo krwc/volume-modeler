@@ -130,7 +130,6 @@ void realloc_vbo_if_necessary(std::shared_ptr<ComputeContext> &ctx,
             nullptr,
             align(vertex_size * num_voxels)
         }));
-        fprintf(stderr, "Allocated vbo of size %zu\n", chunk.vbo.size());
         chunk.cl_vbo = compute::opengl_buffer(ctx->context, chunk.vbo.id());
     }
 }
@@ -145,7 +144,6 @@ void realloc_ibo_if_necessary(std::shared_ptr<ComputeContext> &ctx,
             nullptr,
             align(6 * sizeof(unsigned) * num_edges)
         }));
-        fprintf(stderr, "Allocated ibo of size %zu\n", chunk.ibo.size());
         chunk.cl_ibo = compute::opengl_buffer(ctx->context, chunk.ibo.id());
     }
 }

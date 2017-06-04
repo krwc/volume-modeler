@@ -4,6 +4,8 @@
 #include "utils/log.h"
 #include "utils/persistence.h"
 
+#include "compute/utils.h"
+
 #include <cassert>
 
 #include <boost/lexical_cast.hpp>
@@ -36,7 +38,6 @@ static void validate_header(fstream &file) {
     ArchiveHeader header{};
     file >= header.version;
     file >= header.chunk_size;
-    file >= header.chunk_border;
     file >= header.voxel_size;
 
     if (header.version != ARCHIVE_VERSION) {
@@ -49,11 +50,6 @@ static void validate_header(fstream &file) {
                 boost::str(boost::format("Expected chunk size %1%, got: %2%")
                            % VM_CHUNK_SIZE % header.chunk_size));
     }
-    if (header.chunk_border != VM_CHUNK_BORDER) {
-        throw runtime_error(
-                boost::str(boost::format("Expected chunk border %1%, got: %2%")
-                           % VM_CHUNK_BORDER % header.chunk_border));
-    }
     if (header.voxel_size != VM_VOXEL_SIZE) {
         throw runtime_error(
                 boost::str(boost::format("Expected voxel size %1%, got: %2%")
@@ -65,9 +61,28 @@ static void write_header(ofstream &file) {
     // clang-format off
     file <= static_cast<uint16_t>(ARCHIVE_VERSION)
          <= static_cast<uint16_t>(VM_CHUNK_SIZE)
-         <= static_cast<uint16_t>(VM_CHUNK_BORDER)
          <= static_cast<double>(VM_VOXEL_SIZE);
     // clang-format on
+}
+#if 0
+static unique_ptr<ofstream> make_persist_stream(const string &filename) {
+    using namespace boost::iostreams;
+    unique_ptr<ofstream> file = make_unique<ofstream>();
+    file->exceptions(ofstream::failbit | ofstream::badbit);
+    file->open(filename, ofstream::out | ofstream::binary);
+    return file;
+}
+
+static void persist(const unique_ptr<ofstream> &stream, const vector<uint8_t> &data) {
+
+}
+
+static void append(const string &filename, const vector<uint8_t> &data) {
+    using namespace boost::iostreams;
+    ofstream file;
+    file.exceptions(ofstream::failbit | ofstream::badbit);
+    file.open(filename, ofstream::out | ofstream::binary | ofstream::append);
+
 }
 
 static void persist(const string &filename, const vector<uint8_t> &data) {
@@ -102,6 +117,7 @@ static vector<uint8_t> restore(const string &filename, size_t voxel_size) {
     LOG(trace) << "Restored " << filename;
     return data;
 }
+#endif
 
 static string name_for_coord(const ivec3 &coord) {
     return boost::str(boost::format("chunk_%1%_%2%_%3%.gz") % coord.x % coord.y
@@ -158,69 +174,82 @@ const CoordSet &SceneArchive::get_chunk_coords() const {
 }
 
 void SceneArchive::persist_later(shared_ptr<Chunk> chunk) {
-#if 0
     lock_guard<mutex> jobs_lock(m_jobs_mutex);
     if (m_jobs.find(chunk) != m_jobs.end()) {
         m_thread_pool.cancel(m_jobs.at(chunk));
     }
 
     m_jobs[chunk] = m_thread_pool.enqueue([=, &jobs_mutex=m_jobs_mutex]() {
-        const size_t N = VM_CHUNK_SIZE + VM_CHUNK_BORDER;
-        compute::event copy_finished;
-        compute::event read_finished;
-        compute::image3d image_copy(m_compute_ctx->context, N, N, N,
-                                    m_volume_format);
-        {
-            lock_guard<mutex> chunk_lock(chunk->get_mutex());
-            lock_guard<mutex> queue_lock(m_compute_ctx->queue_mutex);
-            copy_finished = m_compute_ctx->queue.enqueue_copy_image(
-                                                    chunk->get_volume(),
-                                                    image_copy,
-                                                    compute::dim(0,0,0).data(),
-                                                    compute::dim(0,0,0).data(),
-                                                    compute::dim(N,N,N).data());
-        }
-        copy_finished.wait();
+        const size_t N = VM_CHUNK_SIZE;
 
-        vector<uint8_t> buffer(m_voxel_size * N * N * N);
+        vector<uint8_t> samples(sizeof(uint16_t) * (N+3) * (N+3) * (N+3));
+        vector<uint8_t> edges_x(4 * sizeof(uint16_t) * (N+2) * (N+3) * (N+3));
+        vector<uint8_t> edges_y(4 * sizeof(uint16_t) * (N+3) * (N+2) * (N+3));
+        vector<uint8_t> edges_z(4 * sizeof(uint16_t) * (N+3) * (N+3) * (N+2));
         {
             lock_guard<mutex> queue_lock(m_compute_ctx->queue_mutex);
-            // NOTE: boost::compute does not have enqueue_read_image_async
-            cl_int retval = clEnqueueReadImage(
-                    m_compute_ctx->queue.get(),
-                    image_copy.get(),
-                    CL_FALSE,
-                    compute::dim(0,0,0).data(),
-                    compute::dim(N,N,N).data(),
-                    0, 0, buffer.data(), 0, nullptr,
-                    &read_finished.get());
-            if (retval != CL_SUCCESS) {
-                LOG(error) << "clEnqueueReadImage failed " << retval;
-            }
-            assert(retval == CL_SUCCESS);
+            lock_guard<mutex> chunk_lock(chunk->lock);
+            enqueue_read_image3d(m_compute_ctx->queue, chunk->samples, samples.data());
+            enqueue_read_image3d(m_compute_ctx->queue, chunk->edges_x, edges_x.data());
+            enqueue_read_image3d(m_compute_ctx->queue, chunk->edges_y, edges_y.data());
+            enqueue_read_image3d(m_compute_ctx->queue, chunk->edges_z, edges_z.data());
+            m_compute_ctx->queue.finish();
         }
-        read_finished.wait();
 
-        detail::persist(chunk_filename(chunk), buffer);
+        using namespace boost::iostreams;
+        ofstream file;
+        file.exceptions(ofstream::failbit | ofstream::badbit);
+        file.open(chunk_filename(chunk), ofstream::out | ofstream::binary);
+        detail::write_header(file);
+        filtering_streambuf<output> out;
+        out.push(zlib_compressor());
+        out.push(file);
+        boost::iostreams::write(
+                out, reinterpret_cast<const char *>(samples.data()), samples.size());
+        boost::iostreams::write(
+                out, reinterpret_cast<const char *>(edges_x.data()), edges_x.size());
+        boost::iostreams::write(
+                out, reinterpret_cast<const char *>(edges_y.data()), edges_y.size());
+        boost::iostreams::write(
+                out, reinterpret_cast<const char *>(edges_z.data()), edges_z.size());
+
         lock_guard<mutex> jobs_lock(jobs_mutex);
         m_jobs.erase(chunk);
+
+        LOG(trace) << "Persisted " << chunk_filename(chunk);
     });
-#endif
     (void) chunk;
 }
 
 void SceneArchive::restore(shared_ptr<Chunk> chunk) {
-#if 0
-    auto data = detail::restore(chunk_filename(chunk), m_voxel_size);
-    const size_t N = VM_CHUNK_SIZE + VM_CHUNK_BORDER;
-    m_compute_ctx->queue.enqueue_write_image<3>(chunk->get_volume(),
-                                                compute::dim(0, 0, 0),
-                                                compute::dim(N, N, N),
-                                                data.data());
+    using namespace boost::iostreams;
+    fstream file;
+    file.exceptions(fstream::failbit | fstream::badbit);
+    file.open(chunk_filename(chunk), fstream::in | fstream::binary);
+    detail::validate_header(file);
+    filtering_streambuf<input> in;
+    in.push(zlib_decompressor());
+    in.push(file);
+
+    const size_t N = VM_CHUNK_SIZE;
+    vector<uint8_t> samples(sizeof(uint16_t) * (N+3) * (N+3) * (N+3));
+    vector<uint8_t> edges_x(4 * sizeof(uint16_t) * (N+2) * (N+3) * (N+3));
+    vector<uint8_t> edges_y(4 * sizeof(uint16_t) * (N+3) * (N+2) * (N+3));
+    vector<uint8_t> edges_z(4 * sizeof(uint16_t) * (N+3) * (N+3) * (N+2));
+
+    boost::iostreams::read(in, reinterpret_cast<char *>(&samples[0]), samples.size());
+    boost::iostreams::read(in, reinterpret_cast<char *>(&edges_x[0]), edges_x.size());
+    boost::iostreams::read(in, reinterpret_cast<char *>(&edges_y[0]), edges_y.size());
+    boost::iostreams::read(in, reinterpret_cast<char *>(&edges_z[0]), edges_z.size());
+
+    enqueue_write_image3d(m_compute_ctx->queue, chunk->samples, samples.data());
+    enqueue_write_image3d(m_compute_ctx->queue, chunk->edges_x, edges_x.data());
+    enqueue_write_image3d(m_compute_ctx->queue, chunk->edges_y, edges_y.data());
+    enqueue_write_image3d(m_compute_ctx->queue, chunk->edges_z, edges_z.data());
     m_compute_ctx->queue.flush();
     m_compute_ctx->queue.finish();
-#endif
-    (void) chunk;
+
+    LOG(trace) << "Restored " << chunk_filename(chunk);
 }
 
 } // namespace vm

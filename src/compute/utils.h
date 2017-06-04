@@ -18,6 +18,33 @@ compute::event enqueue_auto_distributed_nd_range_kernel(
             kernel, N, nullptr, global_work_size.data(), nullptr, events);
 }
 
+static inline compute::event enqueue_read_image3d(compute::command_queue &queue,
+                                                  const compute::image3d &image,
+                                                  void *hostptr) {
+    compute::event event;
+    cl_int retval = clEnqueueReadImage(queue.get(),
+                                       image.get(),
+                                       CL_TRUE,
+                                       compute::dim(0, 0, 0).data(),
+                                       image.size().data(),
+                                       0,
+                                       0,
+                                       hostptr,
+                                       0,
+                                       nullptr,
+                                       &event.get());
+    assert(retval == CL_SUCCESS);
+    return event;
+}
+
+static inline compute::event enqueue_write_image3d(compute::command_queue &queue,
+                                                   compute::image3d &image,
+                                                   const void *hostptr) {
+    return queue.enqueue_write_image<3>(image, compute::dim(0, 0, 0),
+                                        image.size(), hostptr);
+}
+
+
 } // namespace vm
 
 #endif
