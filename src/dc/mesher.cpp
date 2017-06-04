@@ -123,7 +123,7 @@ size_t align(size_t value, size_t alignment = 4096) {
 void realloc_vbo_if_necessary(std::shared_ptr<ComputeContext> &ctx,
                               Chunk &chunk,
                               uint32_t num_voxels) {
-    const size_t vertex_size = 2 * sizeof(glm::vec3);
+    const size_t vertex_size = sizeof(glm::vec3);
     if (chunk.vbo.size() < vertex_size * num_voxels) {
         chunk.vbo = move(Buffer(BufferDesc{
             GL_ARRAY_BUFFER,
