@@ -21,7 +21,7 @@ Chunk::Chunk(const ivec3 &coord,
         , cl_vbo()
         , ibo()
         , cl_ibo()
-        , lock()
+        , mutex()
         , coord(coord)
         , lod(lod) {
 }

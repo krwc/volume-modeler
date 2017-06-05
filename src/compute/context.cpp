@@ -19,4 +19,10 @@ ComputeContext::ComputeContext(MakeSharedEnabler, bool gl_shared) {
     LOG(info) << "memory (MB) : " << (context.get_device().global_memory_size() / double(1 << 20));
 }
 
+compute::command_queue ComputeContext::make_out_of_order_queue() const {
+    return compute::command_queue(
+            context, context.get_device(),
+            compute::command_queue::enable_out_of_order_execution);
+}
+
 }

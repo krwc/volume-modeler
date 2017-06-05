@@ -101,8 +101,9 @@ SceneArchive::SceneArchive(const string &directory,
         : m_workdir(directory),
           m_jobs_mutex(),
           m_jobs(),
-          m_compute_ctx(compute_ctx),
-          m_thread_pool(2) {
+          m_thread_pool(2),
+          m_copy_queue(compute_ctx->make_out_of_order_queue()),
+          m_queue_mutex() {
     if (!fs::exists(m_workdir)) {
         fs::create_directory(m_workdir);
     } else if (!fs::is_directory(m_workdir)) {
@@ -125,7 +126,7 @@ void SceneArchive::persist_later(shared_ptr<Chunk> chunk) {
         m_thread_pool.cancel(m_jobs.at(chunk));
     }
 
-    m_jobs[chunk] = m_thread_pool.enqueue([=, &jobs_mutex=m_jobs_mutex]() {
+    m_jobs[chunk] = m_thread_pool.enqueue([=, &jobs_mutex=m_jobs_mutex, &queue_mutex=m_queue_mutex]() {
         const size_t N = VM_CHUNK_SIZE;
 
         vector<uint8_t> samples(sizeof(uint16_t) * (N+3) * (N+3) * (N+3));
@@ -133,13 +134,13 @@ void SceneArchive::persist_later(shared_ptr<Chunk> chunk) {
         vector<uint8_t> edges_y(4 * sizeof(uint16_t) * (N+3) * (N+2) * (N+3));
         vector<uint8_t> edges_z(4 * sizeof(uint16_t) * (N+3) * (N+3) * (N+2));
         {
-            lock_guard<mutex> queue_lock(m_compute_ctx->queue_mutex);
-            lock_guard<mutex> chunk_lock(chunk->lock);
-            enqueue_read_image3d(m_compute_ctx->queue, chunk->samples, samples.data());
-            enqueue_read_image3d(m_compute_ctx->queue, chunk->edges_x, edges_x.data());
-            enqueue_read_image3d(m_compute_ctx->queue, chunk->edges_y, edges_y.data());
-            enqueue_read_image3d(m_compute_ctx->queue, chunk->edges_z, edges_z.data());
-            m_compute_ctx->queue.finish();
+            lock_guard<mutex> queue_lock(queue_mutex);
+            lock_guard<mutex> chunk_lock(chunk->mutex);
+            enqueue_read_image3d_async(m_copy_queue, chunk->samples, samples.data());
+            enqueue_read_image3d_async(m_copy_queue, chunk->edges_x, edges_x.data());
+            enqueue_read_image3d_async(m_copy_queue, chunk->edges_y, edges_y.data());
+            enqueue_read_image3d_async(m_copy_queue, chunk->edges_z, edges_z.data());
+            m_copy_queue.finish();
         }
 
         using namespace boost::iostreams;
@@ -188,12 +189,13 @@ void SceneArchive::restore(shared_ptr<Chunk> chunk) {
     boost::iostreams::read(in, reinterpret_cast<char *>(&edges_y[0]), edges_y.size());
     boost::iostreams::read(in, reinterpret_cast<char *>(&edges_z[0]), edges_z.size());
 
-    enqueue_write_image3d(m_compute_ctx->queue, chunk->samples, samples.data());
-    enqueue_write_image3d(m_compute_ctx->queue, chunk->edges_x, edges_x.data());
-    enqueue_write_image3d(m_compute_ctx->queue, chunk->edges_y, edges_y.data());
-    enqueue_write_image3d(m_compute_ctx->queue, chunk->edges_z, edges_z.data());
-    m_compute_ctx->queue.flush();
-    m_compute_ctx->queue.finish();
+    lock_guard<mutex> queue_lock(m_queue_mutex);
+    lock_guard<mutex> chunk_lock(chunk->mutex);
+    enqueue_write_image3d(m_copy_queue, chunk->samples, samples.data());
+    enqueue_write_image3d(m_copy_queue, chunk->edges_x, edges_x.data());
+    enqueue_write_image3d(m_copy_queue, chunk->edges_y, edges_y.data());
+    enqueue_write_image3d(m_copy_queue, chunk->edges_z, edges_z.data());
+    m_copy_queue.finish();
 
     LOG(trace) << "Restored " << chunk_filename(chunk);
 }

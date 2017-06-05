@@ -23,7 +23,7 @@ struct Chunk {
     compute::opengl_buffer cl_ibo;
     size_t num_indices;
 
-    std::mutex lock;
+    std::mutex mutex;
     glm::ivec3 coord;
     int lod;
 

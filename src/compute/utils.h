@@ -18,13 +18,14 @@ compute::event enqueue_auto_distributed_nd_range_kernel(
             kernel, N, nullptr, global_work_size.data(), nullptr, events);
 }
 
-static inline compute::event enqueue_read_image3d(compute::command_queue &queue,
-                                                  const compute::image3d &image,
-                                                  void *hostptr) {
+static inline compute::event
+enqueue_read_image3d_async(compute::command_queue &queue,
+                           const compute::image3d &image,
+                           void *hostptr) {
     compute::event event;
     cl_int retval = clEnqueueReadImage(queue.get(),
                                        image.get(),
-                                       CL_TRUE,
+                                       CL_FALSE,
                                        compute::dim(0, 0, 0).data(),
                                        image.size().data(),
                                        0,

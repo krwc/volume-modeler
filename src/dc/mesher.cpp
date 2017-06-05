@@ -72,10 +72,7 @@ void Mesher::init_kernels() {
 
 Mesher::Mesher(const shared_ptr<ComputeContext> &compute_ctx)
         : m_compute_ctx(compute_ctx),
-          m_unordered_queue(compute::command_queue(
-                  compute_ctx->context,
-                  compute_ctx->context.get_device(),
-                  compute::command_queue::enable_out_of_order_execution)) {
+          m_unordered_queue(compute_ctx->make_out_of_order_queue()) {
     init_buffers();
     init_kernels();
 }

@@ -29,9 +29,11 @@ class SceneArchive {
     std::string m_workdir;
     std::mutex m_jobs_mutex;
     std::map<std::shared_ptr<Chunk>, Job> m_jobs;
-    std::shared_ptr<ComputeContext> m_compute_ctx;
     ThreadPool m_thread_pool;
     mutable CoordSet m_chunk_coords;
+
+    compute::command_queue m_copy_queue;
+    std::mutex m_queue_mutex;
 
     void discover_chunk_coords();
     std::string chunk_filename(const std::shared_ptr<Chunk> &chunk) const;

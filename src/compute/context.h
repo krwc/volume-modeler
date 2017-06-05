@@ -32,6 +32,9 @@ public:
     std::mutex queue_mutex;
 
     ComputeContext(MakeSharedEnabler, bool gl_shared);
+
+    /** Creates an out of order queue using initialized context and device */
+    compute::command_queue make_out_of_order_queue() const;
 };
 
 inline std::shared_ptr<ComputeContext> make_gl_shared_compute_context() {
