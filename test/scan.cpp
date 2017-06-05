@@ -121,7 +121,7 @@ TEST(scan, different_big_sizes) {
         TestSuite{size, true};
     }
 }
-#if 0
+
 TEST(scan, performance) {
     compute::device gpu = compute::system::default_device();
     compute::context context(gpu);
@@ -165,4 +165,3 @@ TEST(scan, performance) {
                   << "Max time   : " << max_time << "us" << std::endl << std::endl;
     }
 }
-#endif
