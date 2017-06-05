@@ -26,10 +26,6 @@ include_directories(src)
 add_subdirectory(src)
 add_subdirectory(third_party)
 
-if(WITH_TEST)
-    add_subdirectory(test)
-endif()
-
 file(GLOB_RECURSE CPP_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp)
 file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/media DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
 
@@ -55,6 +51,10 @@ endforeach()
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/config/config.h.in
                ${CMAKE_CURRENT_BINARY_DIR}/config/config.h)
 include_directories(${CMAKE_CURRENT_BINARY_DIR}/config)
+
+if(WITH_TEST)
+    add_subdirectory(test)
+endif()
 
 add_library(${PROJECT_NAME}_object OBJECT ${CPP_SOURCES})
 add_subdirectory(demo)

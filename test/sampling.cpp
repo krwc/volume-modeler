@@ -1,7 +1,6 @@
 #include "gtest/gtest.h"
 
-#define VM_CHUNK_SIZE 64
-#define VM_VOXEL_SIZE 0.04
+#include <config.h>
 
 #include "compute/context.h"
 
@@ -11,12 +10,15 @@
 #include "scene/brush-ball.h"
 #include "scene/brush-cube.h"
 
+#include <glm/gtc/packing.hpp>
+
+namespace {
 struct TestContext {
     std::shared_ptr<vm::ComputeContext> compute_ctx;
 
     vm::Chunk chunk;
     std::vector<float> cpu_samples;
-    std::vector<float> gpu_samples;
+    std::vector<uint16_t> gpu_samples;
 
     TestContext()
             : compute_ctx(vm::make_compute_context()),
@@ -35,7 +37,6 @@ struct TestContext {
     }
 };
 
-namespace {
 glm::vec3
 vertex_at(int x, int y, int z, const glm::vec3 &origin = { 0, 0, 0 }) {
     auto half_dim = 0.5f * glm::vec3(VM_CHUNK_SIZE + 3,
@@ -93,6 +94,7 @@ TEST(sampler, signs_match) {
     for (size_t j = 0; j < VM_CHUNK_SIZE + 3; ++j) {
     for (size_t k = 0; k < VM_CHUNK_SIZE + 3; ++k) {
         const size_t index = k + (VM_CHUNK_SIZE + 3) * (j + (VM_CHUNK_SIZE + 3) * i);
-        ASSERT_EQ(sign(ctx.cpu_samples[index]), sign(ctx.gpu_samples[index]));
+        ASSERT_EQ(sign(ctx.cpu_samples[index]),
+                  sign(glm::unpackHalf1x16(ctx.gpu_samples[index])));
     }}}
 }

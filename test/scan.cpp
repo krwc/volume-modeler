@@ -6,6 +6,7 @@
 #include <vector>
 #include <chrono>
 
+namespace {
 struct TestContext {
     std::vector<uint32_t> numbers;
     std::vector<uint32_t> cpu_scan_result;
@@ -64,6 +65,7 @@ struct TestSuite {
         }
     }
 };
+} // namespace
 
 TEST(scan, inclusive_big) {
     TestSuite{ 80 * 80 * 80 * 4, false };
@@ -119,7 +121,7 @@ TEST(scan, different_big_sizes) {
         TestSuite{size, true};
     }
 }
-
+#if 0
 TEST(scan, performance) {
     compute::device gpu = compute::system::default_device();
     compute::context context(gpu);
@@ -163,3 +165,4 @@ TEST(scan, performance) {
                   << "Max time   : " << max_time << "us" << std::endl << std::endl;
     }
 }
+#endif
