@@ -15,12 +15,12 @@ namespace vm {
  * NOTE: there is no support for different byte orders.
  */
 template <typename T>
-inline std::ostream &operator<= (std::ostream &out, const T &data) {
+inline std::ostream &operator<=(std::ostream &out, const T &data) {
     return out.write(reinterpret_cast<const char *>(&data), sizeof(data));
 }
 
 template <typename T>
-inline std::istream &operator>= (std::istream &in, T &data) {
+inline std::istream &operator>=(std::istream &in, T &data) {
     std::array<char, sizeof(T)> read_data;
     in.read(&read_data[0], sizeof(T));
     memcpy(reinterpret_cast<char *>(&data), &read_data[0], sizeof(T));

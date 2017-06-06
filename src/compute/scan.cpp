@@ -2,8 +2,8 @@
 
 #include "utils/log.h"
 
-#include <stdexcept>
 #include <sstream>
+#include <stdexcept>
 using namespace std;
 
 namespace vm {
@@ -82,16 +82,16 @@ Scan::Scan()
         , m_local_inclusive_scan()
         , m_fixup_scan() {}
 
-Scan::Scan(compute::command_queue &queue,
-           size_t input_size)
+Scan::Scan(compute::command_queue &queue, size_t input_size)
         : m_input_size(input_size)
         , m_aligned_size(align_to_block_size(input_size, Scan::BLOCK_SIZE))
         , m_phases()
         , m_local_inclusive_scan()
         , m_fixup_scan() {
     {
-        auto program = compute::program::create_with_source(scan_source,
-                                                              queue.get_context());
+        auto program =
+                compute::program::create_with_source(scan_source,
+                                                     queue.get_context());
         std::ostringstream inclusive_opts;
         inclusive_opts << " -DBLK_SIZE=" << Scan::BLOCK_SIZE;
         program.build(inclusive_opts.str());
@@ -133,8 +133,10 @@ compute::event Scan::inclusive_scan(compute::vector<uint32_t> &input,
     }
     m_local_inclusive_scan.set_arg(3, static_cast<cl_uint>(m_input_size));
     compute::event event;
-    event = queue.enqueue_1d_range_kernel(m_local_inclusive_scan, 0,
-                                          m_aligned_size, Scan::BLOCK_SIZE,
+    event = queue.enqueue_1d_range_kernel(m_local_inclusive_scan,
+                                          0,
+                                          m_aligned_size,
+                                          Scan::BLOCK_SIZE,
                                           events);
 
     const size_t num_fixup_phases = m_phases.size();
@@ -146,28 +148,35 @@ compute::event Scan::inclusive_scan(compute::vector<uint32_t> &input,
         } else {
             m_local_inclusive_scan.set_arg(2, NULL);
         }
-        m_local_inclusive_scan.set_arg(3, static_cast<cl_uint>(
-                                                  m_phases[j - 1].size()));
-        event = queue.enqueue_1d_range_kernel(m_local_inclusive_scan, 0,
+        m_local_inclusive_scan.set_arg(
+                3, static_cast<cl_uint>(m_phases[j - 1].size()));
+        event = queue.enqueue_1d_range_kernel(m_local_inclusive_scan,
+                                              0,
                                               m_phases[j - 1].size(),
-                                              Scan::BLOCK_SIZE, event);
+                                              Scan::BLOCK_SIZE,
+                                              event);
     }
 
     if (num_fixup_phases) {
         for (size_t j = num_fixup_phases - 1; j >= 1; --j) {
             m_fixup_scan.set_arg(0, m_phases[j - 1]);
             m_fixup_scan.set_arg(1, m_phases[j]);
-            m_fixup_scan.set_arg(2, static_cast<cl_uint>(m_phases[j - 1].size()));
-            event = queue.enqueue_1d_range_kernel(m_fixup_scan, 0,
+            m_fixup_scan.set_arg(2,
+                                 static_cast<cl_uint>(m_phases[j - 1].size()));
+            event = queue.enqueue_1d_range_kernel(m_fixup_scan,
+                                                  0,
                                                   m_phases[j - 1].size(),
-                                                  Scan::BLOCK_SIZE, event);
+                                                  Scan::BLOCK_SIZE,
+                                                  event);
         }
         m_fixup_scan.set_arg(0, output);
         m_fixup_scan.set_arg(1, m_phases[0]);
         m_fixup_scan.set_arg(2, static_cast<cl_uint>(output.size()));
-        event = queue.enqueue_1d_range_kernel(m_fixup_scan, 0,
+        event = queue.enqueue_1d_range_kernel(m_fixup_scan,
+                                              0,
                                               m_aligned_size - Scan::BLOCK_SIZE,
-                                              Scan::BLOCK_SIZE, event);
+                                              Scan::BLOCK_SIZE,
+                                              event);
     }
     return event;
 }

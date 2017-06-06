@@ -10,8 +10,8 @@ extern "C" {
 #pragma GCC diagnostic pop
 }
 
-#include <string>
 #include <stdexcept>
+#include <string>
 
 namespace vm {
 
@@ -23,11 +23,7 @@ struct Image {
     Image(const Image &) = delete;
     Image &operator=(const Image &) = delete;
 
-    Image()
-        : width(0)
-        , height(0)
-        , pixels(nullptr)
-    {}
+    Image() : width(0), height(0), pixels(nullptr) {}
 
     Image(const std::string &path) : Image() {
         int components;

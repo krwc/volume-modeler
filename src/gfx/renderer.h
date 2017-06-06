@@ -1,10 +1,10 @@
 #ifndef VM_GFX_RENDERER_H
 #define VM_GFX_RENDERER_H
-#include <memory>
 #include "config.h"
+#include <memory>
 
-#include "gfx/buffer.h"
 #include "compute/context.h"
+#include "gfx/buffer.h"
 #include "gfx/program.h"
 #include "gfx/texture.h"
 
@@ -30,8 +30,7 @@ public:
     RaiiGLObject &operator=(const RaiiGLObject &) = delete;
 
     RaiiGLObject(CreateFunc &&create_f, DeleteFunc &&delete_f)
-        : m_id(GL_NONE)
-        , m_deleter(delete_f) {
+            : m_id(GL_NONE), m_deleter(delete_f) {
         create_f(1, &m_id);
         assert(m_id > 0);
     }
@@ -61,7 +60,6 @@ public:
 private:
     GLuint m_id;
     DeleteFunc m_deleter;
-
 };
 
 class Vao : public RaiiGLObject {

@@ -38,13 +38,13 @@ enqueue_read_image3d_async(compute::command_queue &queue,
     return event;
 }
 
-static inline compute::event enqueue_write_image3d(compute::command_queue &queue,
-                                                   compute::image3d &image,
-                                                   const void *hostptr) {
-    return queue.enqueue_write_image<3>(image, compute::dim(0, 0, 0),
-                                        image.size(), hostptr);
+static inline compute::event
+enqueue_write_image3d(compute::command_queue &queue,
+                      compute::image3d &image,
+                      const void *hostptr) {
+    return queue.enqueue_write_image<3>(
+            image, compute::dim(0, 0, 0), image.size(), hostptr);
 }
-
 
 } // namespace vm
 

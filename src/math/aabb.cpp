@@ -1,7 +1,7 @@
 #include "aabb.h"
 
-#include <numeric>
 #include <cassert>
+#include <numeric>
 
 namespace vm {
 using namespace glm;
@@ -11,14 +11,9 @@ const float MAX = std::numeric_limits<float>::max();
 const float MIN = -MAX;
 } // namespace
 
-AABB::AABB()
-    : AABB({ MAX, MAX, MAX }, { MIN, MIN, MIN })
-{}
+AABB::AABB() : AABB({ MAX, MAX, MAX }, { MIN, MIN, MIN }) {}
 
-AABB::AABB(const vec3 &min, const vec3 &max)
-    : min(min)
-    , max(max)
-{}
+AABB::AABB(const vec3 &min, const vec3 &max) : min(min), max(max) {}
 
 void AABB::cover(const vec3 &point) {
     min = glm::min(min, point);
@@ -36,9 +31,7 @@ vec3 get_aabb_vertex(const AABB &aabb, size_t index) {
     case 5: return vec3(aabb.max.x, aabb.min.y, aabb.min.z);
     case 6: return vec3(aabb.max.x, aabb.min.y, aabb.max.z);
     case 7: return vec3(aabb.max.x, aabb.max.y, aabb.min.z);
-    default:
-        assert(0 && "invalid index");
-        return vec3(NAN, NAN, NAN);
+    default: assert(0 && "invalid index"); return vec3(NAN, NAN, NAN);
     }
 }
 } // namespace

@@ -8,14 +8,14 @@
 
 #include <cassert>
 
+#include <boost/filesystem.hpp>
+#include <boost/format.hpp>
+#include <boost/iostreams/filter/zlib.hpp>
+#include <boost/iostreams/filtering_streambuf.hpp>
+#include <boost/iostreams/read.hpp>
+#include <boost/iostreams/write.hpp>
 #include <boost/lexical_cast.hpp>
 #include <boost/regex.hpp>
-#include <boost/format.hpp>
-#include <boost/filesystem.hpp>
-#include <boost/iostreams/filtering_streambuf.hpp>
-#include <boost/iostreams/filter/zlib.hpp>
-#include <boost/iostreams/write.hpp>
-#include <boost/iostreams/read.hpp>
 
 using namespace std;
 using namespace glm;
@@ -43,17 +43,20 @@ static void validate_header(fstream &file) {
     if (header.version != ARCHIVE_VERSION) {
         throw runtime_error(
                 boost::str(boost::format("Expected version %1%, got: %2%")
-                           % ARCHIVE_VERSION % header.version));
+                           % ARCHIVE_VERSION
+                           % header.version));
     }
     if (header.chunk_size != VM_CHUNK_SIZE) {
         throw runtime_error(
                 boost::str(boost::format("Expected chunk size %1%, got: %2%")
-                           % VM_CHUNK_SIZE % header.chunk_size));
+                           % VM_CHUNK_SIZE
+                           % header.chunk_size));
     }
     if (header.voxel_size != VM_VOXEL_SIZE) {
         throw runtime_error(
                 boost::str(boost::format("Expected voxel size %1%, got: %2%")
-                           % VM_VOXEL_SIZE % header.voxel_size));
+                           % VM_VOXEL_SIZE
+                           % header.voxel_size));
     }
 }
 
@@ -98,12 +101,12 @@ string SceneArchive::chunk_filename(const shared_ptr<Chunk> &chunk) const {
 
 SceneArchive::SceneArchive(const string &directory,
                            const shared_ptr<ComputeContext> &compute_ctx)
-        : m_workdir(directory),
-          m_jobs_mutex(),
-          m_jobs(),
-          m_thread_pool(2),
-          m_copy_queue(compute_ctx->make_out_of_order_queue()),
-          m_queue_mutex() {
+        : m_workdir(directory)
+        , m_jobs_mutex()
+        , m_jobs()
+        , m_thread_pool(2)
+        , m_copy_queue(compute_ctx->make_out_of_order_queue())
+        , m_queue_mutex() {
     if (!fs::exists(m_workdir)) {
         fs::create_directory(m_workdir);
     } else if (!fs::is_directory(m_workdir)) {
@@ -126,20 +129,31 @@ void SceneArchive::persist_later(shared_ptr<Chunk> chunk) {
         m_thread_pool.cancel(m_jobs.at(chunk));
     }
 
-    m_jobs[chunk] = m_thread_pool.enqueue([=, &jobs_mutex=m_jobs_mutex, &queue_mutex=m_queue_mutex]() {
+    m_jobs[chunk] = m_thread_pool.enqueue([
+        =,
+        &jobs_mutex = m_jobs_mutex,
+        &queue_mutex = m_queue_mutex
+    ]() {
         const size_t N = VM_CHUNK_SIZE;
 
-        vector<uint8_t> samples(sizeof(uint16_t) * (N+3) * (N+3) * (N+3));
-        vector<uint8_t> edges_x(4 * sizeof(uint16_t) * (N+2) * (N+3) * (N+3));
-        vector<uint8_t> edges_y(4 * sizeof(uint16_t) * (N+3) * (N+2) * (N+3));
-        vector<uint8_t> edges_z(4 * sizeof(uint16_t) * (N+3) * (N+3) * (N+2));
+        vector<uint8_t> samples(sizeof(uint16_t) * (N + 3) * (N + 3) * (N + 3));
+        vector<uint8_t> edges_x(4 * sizeof(uint16_t) * (N + 2) * (N + 3)
+                                * (N + 3));
+        vector<uint8_t> edges_y(4 * sizeof(uint16_t) * (N + 3) * (N + 2)
+                                * (N + 3));
+        vector<uint8_t> edges_z(4 * sizeof(uint16_t) * (N + 3) * (N + 3)
+                                * (N + 2));
         {
             lock_guard<mutex> queue_lock(queue_mutex);
             lock_guard<mutex> chunk_lock(chunk->mutex);
-            enqueue_read_image3d_async(m_copy_queue, chunk->samples, samples.data());
-            enqueue_read_image3d_async(m_copy_queue, chunk->edges_x, edges_x.data());
-            enqueue_read_image3d_async(m_copy_queue, chunk->edges_y, edges_y.data());
-            enqueue_read_image3d_async(m_copy_queue, chunk->edges_z, edges_z.data());
+            enqueue_read_image3d_async(
+                    m_copy_queue, chunk->samples, samples.data());
+            enqueue_read_image3d_async(
+                    m_copy_queue, chunk->edges_x, edges_x.data());
+            enqueue_read_image3d_async(
+                    m_copy_queue, chunk->edges_y, edges_y.data());
+            enqueue_read_image3d_async(
+                    m_copy_queue, chunk->edges_z, edges_z.data());
             m_copy_queue.finish();
         }
 
@@ -151,14 +165,18 @@ void SceneArchive::persist_later(shared_ptr<Chunk> chunk) {
         filtering_streambuf<output> out;
         out.push(zlib_compressor());
         out.push(file);
-        boost::iostreams::write(
-                out, reinterpret_cast<const char *>(samples.data()), samples.size());
-        boost::iostreams::write(
-                out, reinterpret_cast<const char *>(edges_x.data()), edges_x.size());
-        boost::iostreams::write(
-                out, reinterpret_cast<const char *>(edges_y.data()), edges_y.size());
-        boost::iostreams::write(
-                out, reinterpret_cast<const char *>(edges_z.data()), edges_z.size());
+        boost::iostreams::write(out,
+                                reinterpret_cast<const char *>(samples.data()),
+                                samples.size());
+        boost::iostreams::write(out,
+                                reinterpret_cast<const char *>(edges_x.data()),
+                                edges_x.size());
+        boost::iostreams::write(out,
+                                reinterpret_cast<const char *>(edges_y.data()),
+                                edges_y.size());
+        boost::iostreams::write(out,
+                                reinterpret_cast<const char *>(edges_z.data()),
+                                edges_z.size());
 
         lock_guard<mutex> jobs_lock(jobs_mutex);
         m_jobs.erase(chunk);
@@ -179,15 +197,19 @@ void SceneArchive::restore(shared_ptr<Chunk> chunk) {
     in.push(file);
 
     const size_t N = VM_CHUNK_SIZE;
-    vector<uint8_t> samples(sizeof(uint16_t) * (N+3) * (N+3) * (N+3));
-    vector<uint8_t> edges_x(4 * sizeof(uint16_t) * (N+2) * (N+3) * (N+3));
-    vector<uint8_t> edges_y(4 * sizeof(uint16_t) * (N+3) * (N+2) * (N+3));
-    vector<uint8_t> edges_z(4 * sizeof(uint16_t) * (N+3) * (N+3) * (N+2));
+    vector<uint8_t> samples(sizeof(uint16_t) * (N + 3) * (N + 3) * (N + 3));
+    vector<uint8_t> edges_x(4 * sizeof(uint16_t) * (N + 2) * (N + 3) * (N + 3));
+    vector<uint8_t> edges_y(4 * sizeof(uint16_t) * (N + 3) * (N + 2) * (N + 3));
+    vector<uint8_t> edges_z(4 * sizeof(uint16_t) * (N + 3) * (N + 3) * (N + 2));
 
-    boost::iostreams::read(in, reinterpret_cast<char *>(&samples[0]), samples.size());
-    boost::iostreams::read(in, reinterpret_cast<char *>(&edges_x[0]), edges_x.size());
-    boost::iostreams::read(in, reinterpret_cast<char *>(&edges_y[0]), edges_y.size());
-    boost::iostreams::read(in, reinterpret_cast<char *>(&edges_z[0]), edges_z.size());
+    boost::iostreams::read(
+            in, reinterpret_cast<char *>(&samples[0]), samples.size());
+    boost::iostreams::read(
+            in, reinterpret_cast<char *>(&edges_x[0]), edges_x.size());
+    boost::iostreams::read(
+            in, reinterpret_cast<char *>(&edges_y[0]), edges_y.size());
+    boost::iostreams::read(
+            in, reinterpret_cast<char *>(&edges_z[0]), edges_z.size());
 
     lock_guard<mutex> queue_lock(m_queue_mutex);
     lock_guard<mutex> chunk_lock(chunk->mutex);

@@ -1,19 +1,12 @@
 #ifndef VM_UTILS_LOG_H
 #define VM_UTILS_LOG_H
-#include <sstream>
 #include <iostream>
+#include <sstream>
 
 namespace vm {
 namespace log {
 
-enum class Severity {
-    trace,
-    debug,
-    info,
-    warning,
-    error,
-    nothing
-};
+enum class Severity { trace, debug, info, warning, error, nothing };
 
 class Logger {
     std::ostringstream m_stream;
@@ -30,12 +23,12 @@ public:
 
     // Holy shit... somebody made it super hard to use custom "stream" like
     // objects with predefined manipulators
-    Logger &operator<<(std::ostream &(*manipulator)(std::ostream &)) {
+    Logger &operator<<(std::ostream &(*manipulator)(std::ostream &) ) {
         manipulator(m_stream);
         return *this;
     }
 
-    Logger &operator<<(std::ios_base &(*manipulator)(std::ios_base &)) {
+    Logger &operator<<(std::ios_base &(*manipulator)(std::ios_base &) ) {
         manipulator(m_stream);
         return *this;
     }
@@ -51,6 +44,7 @@ public:
 } // namespace log
 } // namespace vm
 
-#define LOG(severity) vm::log::Logger(vm::log::Severity::severity, __FILE__, __LINE__)
+#define LOG(severity) \
+    vm::log::Logger(vm::log::Severity::severity, __FILE__, __LINE__)
 
 #endif /* VM_UTILS_LOG_H */

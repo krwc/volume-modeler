@@ -12,13 +12,13 @@
 #include "scene/chunk.h"
 #include "scene/scene-archive.h"
 
-#include "gfx/texture.h"
 #include "compute/context.h"
+#include "gfx/texture.h"
 
 #include "utils/thread-pool.h"
 
-#include "dc/sampler.h"
 #include "dc/mesher.h"
+#include "dc/sampler.h"
 
 #include <boost/optional.hpp>
 
@@ -42,7 +42,7 @@ class Scene {
     void get_covered_region(const AABB &region_aabb,
                             glm::ivec3 &region_min,
                             glm::ivec3 &region_max);
-        /** Initializes the chunk's volumetric data */
+    /** Initializes the chunk's volumetric data */
     void init_chunk(const std::shared_ptr<Chunk> &chunk);
     /** Performs sampling of the brush */
     void sample(const Brush &brush, dc::Sampler::Operation operation);

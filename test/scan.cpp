@@ -3,8 +3,8 @@
 #include "compute/context.h"
 #include "compute/scan.h"
 
-#include <vector>
 #include <chrono>
+#include <vector>
 
 namespace {
 struct TestContext {
@@ -18,12 +18,12 @@ struct TestContext {
     TestContext(compute::context &context,
                 compute::command_queue &queue,
                 size_t input_size)
-        : numbers(input_size, 0)
-        , cpu_scan_result(input_size)
-        , gpu_scan_result(input_size)
-        , input(input_size, context)
-        , output(input_size, context)
-        , gpu_scan(queue, input_size) {
+            : numbers(input_size, 0)
+            , cpu_scan_result(input_size)
+            , gpu_scan_result(input_size)
+            , input(input_size, context)
+            , output(input_size, context)
+            , gpu_scan(queue, input_size) {
 
         for (size_t i = 0; i < numbers.size(); ++i) {
             numbers[i] = i % 8;
@@ -44,23 +44,27 @@ struct TestSuite {
     TestContext test;
 
     TestSuite(size_t input_size, bool in_place = false)
-        : context(compute::system::default_device())
-        , queue(context,
-                compute::system::default_device())
-        , test(context, queue, input_size) {
+            : context(compute::system::default_device())
+            , queue(context, compute::system::default_device())
+            , test(context, queue, input_size) {
 
         if (in_place) {
             test.gpu_scan.inclusive_scan(test.input, test.input, queue);
-            compute::copy(test.input.begin(), test.input.end(),
-                          test.gpu_scan_result.begin(), queue);
+            compute::copy(test.input.begin(),
+                          test.input.end(),
+                          test.gpu_scan_result.begin(),
+                          queue);
         } else {
             test.gpu_scan.inclusive_scan(test.input, test.output, queue);
-            compute::copy(test.output.begin(), test.output.end(),
-                          test.gpu_scan_result.begin(), queue);
+            compute::copy(test.output.begin(),
+                          test.output.end(),
+                          test.gpu_scan_result.begin(),
+                          queue);
         }
         for (size_t i = 0; i < test.numbers.size(); ++i) {
             if (test.cpu_scan_result[i] != test.gpu_scan_result[i]) {
-                throw std::runtime_error("Mismatch at index " + std::to_string(i));
+                throw std::runtime_error("Mismatch at index "
+                                         + std::to_string(i));
             }
         }
     }
@@ -80,7 +84,7 @@ TEST(scan, inplace) {
 }
 
 TEST(scan, non_aligned_size_small) {
-    TestSuite{1023, false};
+    TestSuite{ 1023, false };
 }
 
 TEST(scan, non_aligned_size_big) {
@@ -103,22 +107,18 @@ TEST(scan, different_small_sizes) {
                                21 * 21 * 21,
                                40 * 40 * 40 };
     for (size_t size : sizes) {
-        TestSuite{size, false};
-        TestSuite{size, true};
+        TestSuite{ size, false };
+        TestSuite{ size, true };
     }
 }
 
 TEST(scan, different_big_sizes) {
-    std::vector<size_t> sizes{ 41 * 41 * 41,
-                               80 * 80 * 80,
-                               81 * 81 * 81,
-                               83 * 83 * 83,
-                               84 * 84 * 84,
-                               96 * 96 * 96,
+    std::vector<size_t> sizes{ 41 * 41 * 41, 80 * 80 * 80, 81 * 81 * 81,
+                               83 * 83 * 83, 84 * 84 * 84, 96 * 96 * 96,
                                98 * 98 * 98 };
     for (size_t size : sizes) {
-        TestSuite{size, false};
-        TestSuite{size, true};
+        TestSuite{ size, false };
+        TestSuite{ size, true };
     }
 }
 
@@ -154,14 +154,16 @@ TEST(scan, performance) {
         }
         double stddev = 0;
         for (double dt : dts) {
-            stddev += std::pow(dt - (total_time/NUM_TESTS), 2);
+            stddev += std::pow(dt - (total_time / NUM_TESTS), 2);
         }
         stddev = std::sqrt(stddev / NUM_TESTS);
         std::cerr << "Stats for " << size << " elements: " << std::endl
                   << "Total time : " << total_time << "us" << std::endl
-                  << "Avg time   : " << (total_time / NUM_TESTS) << "us" << std::endl
+                  << "Avg time   : " << (total_time / NUM_TESTS) << "us"
+                  << std::endl
                   << "Stddev     : " << stddev << std::endl
                   << "Min time   : " << min_time << "us" << std::endl
-                  << "Max time   : " << max_time << "us" << std::endl << std::endl;
+                  << "Max time   : " << max_time << "us" << std::endl
+                  << std::endl;
     }
 }

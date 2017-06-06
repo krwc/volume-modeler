@@ -3,8 +3,8 @@
 #include "utils/log.h"
 
 #include <cassert>
-#include <iterator>
 #include <fstream>
+#include <iterator>
 #include <sstream>
 
 namespace vm {
@@ -37,11 +37,7 @@ Program::Program(Program &&other) : m_id(GL_NONE) {
     *this = move(other);
 }
 
-Program::Program()
-    : m_id(GL_NONE)
-    , m_constants()
-    , m_defines()
-    , m_shaders() {
+Program::Program() : m_id(GL_NONE), m_constants(), m_defines(), m_shaders() {
     m_id = glCreateProgram();
     assert(m_id > 0);
 }
@@ -65,7 +61,8 @@ string read_file(const string &path) {
 }
 
 void Program::set_shader_from_file(GLenum type, const string &file) {
-    m_shaders.push_back(ShaderDesc{ read_file(file), file, type, glCreateShader(type) });
+    m_shaders.push_back(
+            ShaderDesc{ read_file(file), file, type, glCreateShader(type) });
 }
 
 void Program::compile_shader(ShaderDesc &desc) {
@@ -88,12 +85,10 @@ void Program::compile_shader(ShaderDesc &desc) {
 
     if (status == GL_FALSE) {
         compilation_log.resize(log_length - 1, '\0');
-        glGetShaderInfoLog(desc.id, log_length - 1, &log_length,
-                           &compilation_log[0]);
+        glGetShaderInfoLog(
+                desc.id, log_length - 1, &log_length, &compilation_log[0]);
         stringstream error;
-        error << "Failed to compile: "
-              << desc.filename
-              << '\n'
+        error << "Failed to compile: " << desc.filename << '\n'
               << compilation_log;
         throw runtime_error(error.str());
     }
@@ -132,7 +127,8 @@ void Program::link() {
 void Program::discover_constants() {
     m_constants.clear();
     int num_active_uniforms = 0;
-    glGetProgramInterfaceiv(m_id, GL_UNIFORM, GL_ACTIVE_RESOURCES, &num_active_uniforms);
+    glGetProgramInterfaceiv(
+            m_id, GL_UNIFORM, GL_ACTIVE_RESOURCES, &num_active_uniforms);
     enum {
         PROPERTY_BLOCK_INDEX = 0,
         PROPERTY_NAME_LENGTH = 1,
@@ -140,16 +136,13 @@ void Program::discover_constants() {
         PROPERTY_TYPE = 3
     };
     const GLenum properties[4] = {
-        GL_BLOCK_INDEX,
-        GL_NAME_LENGTH,
-        GL_LOCATION,
-        GL_TYPE
+        GL_BLOCK_INDEX, GL_NAME_LENGTH, GL_LOCATION, GL_TYPE
     };
 
     for (int index = 0; index < num_active_uniforms; ++index) {
         GLint results[4];
-        glGetProgramResourceiv(m_id, GL_UNIFORM, index, 4, properties, 4,
-                               nullptr, results);
+        glGetProgramResourceiv(
+                m_id, GL_UNIFORM, index, 4, properties, 4, nullptr, results);
 
         /* Ignore uniforms located in Uniform Blocks */
         if (results[PROPERTY_BLOCK_INDEX] != -1) {
@@ -157,13 +150,15 @@ void Program::discover_constants() {
         }
 
         string uniform_name(results[PROPERTY_NAME_LENGTH] - 1, '\0');
-        glGetProgramResourceName(m_id, GL_UNIFORM, index,
-                                 results[PROPERTY_NAME_LENGTH], nullptr,
+        glGetProgramResourceName(m_id,
+                                 GL_UNIFORM,
+                                 index,
+                                 results[PROPERTY_NAME_LENGTH],
+                                 nullptr,
                                  &uniform_name[0]);
-        m_constants[uniform_name] = Program::ParamDesc {
-            (GLenum) results[PROPERTY_TYPE],
-            (GLint) results[PROPERTY_LOCATION]
-        };
+        m_constants[uniform_name] =
+                Program::ParamDesc{ (GLenum) results[PROPERTY_TYPE],
+                                    (GLint) results[PROPERTY_LOCATION] };
 
         auto opening_brace = uniform_name.find('[');
         if (opening_brace == string::npos) {
@@ -172,17 +167,16 @@ void Program::discover_constants() {
         /* Thank you OpenGL for treating arrays differently. Now my life is
            much, much easier */
         const string array_name = uniform_name.substr(0, opening_brace);
-        for (int index = 1; ; ++index) {
+        for (int index = 1;; ++index) {
             string element = array_name + "[" + to_string(index) + "]";
             GLint location = glGetUniformLocation(m_id, element.c_str());
             if (location < 0) {
                 break;
             }
 
-            m_constants[element] = Program::ParamDesc {
-                (GLenum) results[PROPERTY_TYPE],
-                location
-            };
+            m_constants[element] =
+                    Program::ParamDesc{ (GLenum) results[PROPERTY_TYPE],
+                                        location };
         }
     }
 }
@@ -218,19 +212,17 @@ void Program::set_constant(const ParamDesc &desc, const void *data) {
         glProgramUniform4fv(m_id, location, 1, (const GLfloat *) data);
         break;
     case GL_FLOAT_MAT3:
-        glProgramUniformMatrix3fv(m_id, location, 1, GL_FALSE,
-                                  (const GLfloat *) data);
+        glProgramUniformMatrix3fv(
+                m_id, location, 1, GL_FALSE, (const GLfloat *) data);
         break;
     case GL_FLOAT_MAT4:
-        glProgramUniformMatrix4fv(m_id, location, 1, GL_FALSE,
-                                  (const GLfloat *) data);
+        glProgramUniformMatrix4fv(
+                m_id, location, 1, GL_FALSE, (const GLfloat *) data);
         break;
     case GL_INT_VEC3:
         glProgramUniform3iv(m_id, location, 1, (const GLint *) data);
         break;
-    default:
-        assert(0 && "constant type not supported");
-        return;
+    default: assert(0 && "constant type not supported"); return;
     }
 }
 

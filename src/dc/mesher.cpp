@@ -5,8 +5,8 @@
 #include "compute/interop.h"
 #include "compute/utils.h"
 
-#include "scene/scene.h"
 #include "scene/chunk.h"
+#include "scene/scene.h"
 
 #include "utils/log.h"
 
@@ -24,14 +24,15 @@ void Mesher::init_buffers() {
     // though.
     const size_t num_edges = 3 * ((N + 3) * (N + 3) * (N + 3));
     m_edges_scan = move(Scan(m_compute_ctx->queue, num_edges));
-    m_edge_mask =
-            compute::vector<uint32_t>(num_edges, m_compute_ctx->context);
+    m_edge_mask = compute::vector<uint32_t>(num_edges, m_compute_ctx->context);
     m_scanned_edges =
             compute::vector<uint32_t>(num_edges, m_compute_ctx->context);
-    compute::fill(m_scanned_edges.begin(), m_scanned_edges.end(), 0,
+    compute::fill(m_scanned_edges.begin(),
+                  m_scanned_edges.end(),
+                  0,
                   m_compute_ctx->queue);
-    compute::fill(m_edge_mask.begin(), m_edge_mask.end(), 0,
-                  m_compute_ctx->queue);
+    compute::fill(
+            m_edge_mask.begin(), m_edge_mask.end(), 0, m_compute_ctx->queue);
 
     const size_t num_voxels = (N + 2) * (N + 2) * (N + 2);
     m_voxels_scan = move(Scan(m_compute_ctx->queue, num_voxels));
@@ -67,12 +68,11 @@ void Mesher::init_kernels() {
         m_copy_vertices = program.create_kernel("copy_vertices");
         m_make_indices = program.create_kernel("make_indices");
     }
-
 }
 
 Mesher::Mesher(const shared_ptr<ComputeContext> &compute_ctx)
-        : m_compute_ctx(compute_ctx),
-          m_unordered_queue(compute_ctx->make_out_of_order_queue()) {
+        : m_compute_ctx(compute_ctx)
+        , m_unordered_queue(compute_ctx->make_out_of_order_queue()) {
     init_buffers();
     init_kernels();
 }
@@ -83,12 +83,13 @@ void Mesher::enqueue_select_edges(Chunk &chunk) {
     m_select_active_edges.set_arg(1, chunk.samples);
 
     auto event = enqueue_auto_distributed_nd_range_kernel<3>(
-            m_unordered_queue, m_select_active_edges,
+            m_unordered_queue,
+            m_select_active_edges,
             compute::dim(N + 3, N + 3, N + 3));
 
     // Count them
-    m_edges_scan.inclusive_scan(m_edge_mask, m_scanned_edges, m_unordered_queue,
-                                event);
+    m_edges_scan.inclusive_scan(
+            m_edge_mask, m_scanned_edges, m_unordered_queue, event);
 }
 
 void Mesher::enqueue_solve_qef(Chunk &chunk) {
@@ -104,8 +105,8 @@ void Mesher::enqueue_solve_qef(Chunk &chunk) {
             m_unordered_queue, m_solve_qef, compute::dim(N + 2, N + 2, N + 2));
 
     // Count active voxels
-    m_voxels_scan.inclusive_scan(m_voxel_mask, m_scanned_voxels,
-                                 m_unordered_queue, event);
+    m_voxels_scan.inclusive_scan(
+            m_voxel_mask, m_scanned_voxels, m_unordered_queue, event);
 }
 
 namespace {
@@ -121,12 +122,10 @@ void realloc_vbo_if_necessary(std::shared_ptr<ComputeContext> &ctx,
                               uint32_t num_voxels) {
     const size_t vertex_size = sizeof(glm::vec3);
     if (chunk.vbo.size() < vertex_size * num_voxels) {
-        chunk.vbo = move(Buffer(BufferDesc{
-            GL_ARRAY_BUFFER,
-            GL_DYNAMIC_DRAW,
-            nullptr,
-            align(vertex_size * num_voxels)
-        }));
+        chunk.vbo = move(Buffer(BufferDesc{ GL_ARRAY_BUFFER,
+                                            GL_DYNAMIC_DRAW,
+                                            nullptr,
+                                            align(vertex_size * num_voxels) }));
         chunk.cl_vbo = compute::opengl_buffer(ctx->context, chunk.vbo.id());
     }
 }
@@ -135,12 +134,11 @@ void realloc_ibo_if_necessary(std::shared_ptr<ComputeContext> &ctx,
                               Chunk &chunk,
                               size_t num_edges) {
     if (chunk.ibo.size() < 6 * sizeof(unsigned) * num_edges) {
-        chunk.ibo = move(Buffer(BufferDesc{
-            GL_ELEMENT_ARRAY_BUFFER,
-            GL_DYNAMIC_DRAW,
-            nullptr,
-            align(6 * sizeof(unsigned) * num_edges)
-        }));
+        chunk.ibo = move(
+                Buffer(BufferDesc{ GL_ELEMENT_ARRAY_BUFFER,
+                                   GL_DYNAMIC_DRAW,
+                                   nullptr,
+                                   align(6 * sizeof(unsigned) * num_edges) }));
         chunk.cl_ibo = compute::opengl_buffer(ctx->context, chunk.ibo.id());
     }
 }
@@ -157,21 +155,34 @@ void Mesher::enqueue_contour(Chunk &chunk) {
     glFinish();
 
     // TODO: Why acquiring ibo and vbo together causes deadlocks?!
-    clEnqueueAcquireGLObjects(m_compute_ctx->queue.get(), 1,
-                              &chunk.cl_vbo.get(), 0, nullptr, nullptr);
+    clEnqueueAcquireGLObjects(m_compute_ctx->queue.get(),
+                              1,
+                              &chunk.cl_vbo.get(),
+                              0,
+                              nullptr,
+                              nullptr);
     m_copy_vertices.set_arg(0, chunk.cl_vbo);
     m_copy_vertices.set_arg(1, m_voxel_vertices);
     m_copy_vertices.set_arg(2, m_voxel_mask);
     m_copy_vertices.set_arg(3, m_scanned_voxels);
-    enqueue_auto_distributed_nd_range_kernel<1>(
-            m_compute_ctx->queue, m_copy_vertices,
-            compute::dim((N + 2) * (N + 2) * (N + 2)));
+    enqueue_auto_distributed_nd_range_kernel<1>(m_compute_ctx->queue,
+                                                m_copy_vertices,
+                                                compute::dim((N + 2) * (N + 2)
+                                                             * (N + 2)));
 
-    clEnqueueReleaseGLObjects(m_compute_ctx->queue.get(), 1,
-                              &chunk.cl_vbo.get(), 0, nullptr, nullptr);
+    clEnqueueReleaseGLObjects(m_compute_ctx->queue.get(),
+                              1,
+                              &chunk.cl_vbo.get(),
+                              0,
+                              nullptr,
+                              nullptr);
 
-    clEnqueueAcquireGLObjects(m_compute_ctx->queue.get(), 1,
-                              &chunk.cl_ibo.get(), 0, nullptr, nullptr);
+    clEnqueueAcquireGLObjects(m_compute_ctx->queue.get(),
+                              1,
+                              &chunk.cl_ibo.get(),
+                              0,
+                              nullptr,
+                              nullptr);
     // TODO: Why this is necessary? I mean, the queue is ordered after all
     m_compute_ctx->queue.flush();
     m_compute_ctx->queue.finish();
@@ -182,11 +193,16 @@ void Mesher::enqueue_contour(Chunk &chunk) {
     m_make_indices.set_arg(3, m_scanned_voxels);
     m_make_indices.set_arg(4, chunk.samples);
     enqueue_auto_distributed_nd_range_kernel<1>(
-            m_compute_ctx->queue, m_make_indices,
+            m_compute_ctx->queue,
+            m_make_indices,
             compute::dim(3 * (N + 3) * (N + 3) * (N + 3)));
 
-    clEnqueueReleaseGLObjects(m_compute_ctx->queue.get(), 1,
-                              &chunk.cl_ibo.get(), 0, nullptr, nullptr);
+    clEnqueueReleaseGLObjects(m_compute_ctx->queue.get(),
+                              1,
+                              &chunk.cl_ibo.get(),
+                              0,
+                              nullptr,
+                              nullptr);
 
     m_compute_ctx->queue.flush();
     m_compute_ctx->queue.finish();

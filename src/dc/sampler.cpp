@@ -1,13 +1,13 @@
 #include <config.h>
 
-#include <sstream>
 #include <chrono>
+#include <sstream>
 
 #include "sampler.h"
 
-#include "scene/scene.h"
-#include "scene/chunk.h"
 #include "scene/brush.h"
+#include "scene/chunk.h"
+#include "scene/scene.h"
 
 #include "compute/interop.h"
 #include "compute/utils.h"
@@ -20,10 +20,8 @@ namespace vm {
 namespace dc {
 namespace {
 vector<pair<string, Brush::Id>> supported_brushes() {
-    return {
-        { "BRUSH_BALL", Brush::Id::Ball },
-        { "BRUSH_CUBE", Brush::Id::Cube }
-    };
+    return { { "BRUSH_BALL", Brush::Id::Ball },
+             { "BRUSH_CUBE", Brush::Id::Cube } };
 }
 } // namespace
 
@@ -76,7 +74,8 @@ void Sampler::sample(Chunk &chunk, const Brush &brush, Operation operation) {
         updater.set_arg(0, (&chunk.edges_x)[axis]);
         updater.set_arg(1, static_cast<cl_int>(axis));
         enqueue_auto_distributed_nd_range_kernel<3>(
-                m_compute_ctx->queue, updater,
+                m_compute_ctx->queue,
+                updater,
                 compute::dim(N + 3, N + 3, N + 3));
     }
     m_compute_ctx->queue.flush();

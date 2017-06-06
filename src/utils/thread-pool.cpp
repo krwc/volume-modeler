@@ -33,7 +33,7 @@ public:
     ThreadPoolImpl(size_t num_threads)
             : m_mutex(), m_running(true), m_workers(), m_queue() {
         for (size_t i = 0; i < num_threads; ++i) {
-            m_workers.emplace_back([&](){
+            m_workers.emplace_back([&]() {
                 while (m_running.load()) {
                     function<void()> job;
                     {
@@ -55,7 +55,8 @@ public:
                     try {
                         job();
                     } catch (exception &e) {
-                        LOG(warning) << "Exception thrown by the job: " << e.what();
+                        LOG(warning)
+                                << "Exception thrown by the job: " << e.what();
                     }
                 }
             });
@@ -117,8 +118,7 @@ public:
 ThreadPool::ThreadPool(size_t num_threads)
         : m_impl(make_unique<ThreadPoolImpl>(num_threads)) {}
 
-ThreadPool::~ThreadPool() {
-}
+ThreadPool::~ThreadPool() {}
 
 Job ThreadPool::enqueue(std::function<void()> &&job) {
     return m_impl->enqueue(move(job));

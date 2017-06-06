@@ -21,10 +21,7 @@ class Sampler {
     std::array<SDFSampler, 2> m_sdf_samplers;
 
 public:
-    enum class Operation {
-        Add = 0,
-        Sub = 1
-    };
+    enum class Operation { Add = 0, Sub = 1 };
 
     /**
      * Initializes brush sampler.

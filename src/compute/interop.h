@@ -26,10 +26,9 @@ struct Mat3Repr {
     Vec3Repr row2;
 
     Mat3Repr(const glm::mat3 &m)
-        : row0({m[0].x, m[1].x, m[2].x})
-        , row1({m[0].y, m[1].y, m[2].y})
-        , row2({m[0].z, m[1].z, m[2].z}) {
-    }
+            : row0({ m[0].x, m[1].x, m[2].x })
+            , row1({ m[0].y, m[1].y, m[2].y })
+            , row2({ m[0].z, m[1].z, m[2].z }) {}
 
     Mat3Repr() : Mat3Repr(glm::mat3(0.0f)) {}
 };
@@ -41,11 +40,10 @@ struct Mat4Repr {
     Vec4Repr row3;
 
     Mat4Repr(const glm::mat4 &m)
-        : row0({m[0].x, m[1].x, m[2].x, m[3].x})
-        , row1({m[0].y, m[1].y, m[2].y, m[3].y})
-        , row2({m[0].z, m[1].z, m[2].z, m[3].z})
-        , row3({m[0].w, m[1].w, m[2].w, m[3].w}) {
-    }
+            : row0({ m[0].x, m[1].x, m[2].x, m[3].x })
+            , row1({ m[0].y, m[1].y, m[2].y, m[3].y })
+            , row2({ m[0].z, m[1].z, m[2].z, m[3].z })
+            , row3({ m[0].w, m[1].w, m[2].w, m[3].w }) {}
 
     Mat4Repr() : Mat4Repr(glm::mat4(0.0f)) {}
 };
@@ -56,7 +54,7 @@ namespace boost {
 namespace compute {
 namespace detail {
 
-template<>
+template <>
 struct set_kernel_arg<int> {
     void operator()(kernel &kernel_, size_t index, const int v) {
         cl_int value = v;
@@ -64,7 +62,7 @@ struct set_kernel_arg<int> {
     }
 };
 
-template<>
+template <>
 struct set_kernel_arg<glm::vec3> {
     void operator()(kernel &kernel_, size_t index, const glm::vec3 &v) {
         vm::Vec3Repr value(v);
@@ -72,7 +70,7 @@ struct set_kernel_arg<glm::vec3> {
     }
 };
 
-template<>
+template <>
 struct set_kernel_arg<glm::vec4> {
     void operator()(kernel &kernel_, size_t index, const glm::vec4 &v) {
         vm::Vec4Repr value(v);
@@ -80,7 +78,7 @@ struct set_kernel_arg<glm::vec4> {
     }
 };
 
-template<>
+template <>
 struct set_kernel_arg<glm::mat3> {
     void operator()(kernel &kernel_, size_t index, const glm::mat3 &m) {
         vm::Mat3Repr value(m);
@@ -88,7 +86,7 @@ struct set_kernel_arg<glm::mat3> {
     }
 };
 
-template<>
+template <>
 struct set_kernel_arg<glm::mat4> {
     void operator()(kernel &kernel_, size_t index, const glm::mat4 &m) {
         vm::Mat4Repr value(m);

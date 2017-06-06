@@ -87,6 +87,7 @@ void Camera::set_rotation_y(float radians) {
 }
 
 istream &operator>>(istream &in, Camera &camera) {
+    // clang-format off
     in >= camera.m_origin
        >= camera.m_rotx
        >= camera.m_roty
@@ -94,12 +95,14 @@ istream &operator>>(istream &in, Camera &camera) {
        >= camera.m_aspect_ratio
        >= camera.m_near_plane
        >= camera.m_far_plane;
+    // clang-format on
     camera.recalculate_view();
     camera.recalculate_proj();
     return in;
 }
 
 ostream &operator<<(ostream &out, const Camera &camera) {
+    // clang-format off
     out <= camera.m_origin
         <= camera.m_rotx
         <= camera.m_roty
@@ -107,6 +110,7 @@ ostream &operator<<(ostream &out, const Camera &camera) {
         <= camera.m_aspect_ratio
         <= camera.m_near_plane
         <= camera.m_far_plane;
+    // clang-format on
     return out;
 }
 

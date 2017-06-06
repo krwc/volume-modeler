@@ -2,11 +2,11 @@
 #define VM_GFX_PROGRAM_H
 #include <GL/glew.h>
 
+#include <limits>
 #include <map>
+#include <stdexcept>
 #include <string>
 #include <vector>
-#include <stdexcept>
-#include <limits>
 
 namespace vm {
 

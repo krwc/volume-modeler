@@ -14,17 +14,9 @@ namespace vm {
  */
 class Brush {
 public:
-    enum Id {
-        Cube,
-        Ball
-    };
+    enum Id { Cube, Ball };
 
-    Brush()
-        : m_origin()
-        , m_rotation(1.0f)
-        , m_scale(1, 1, 1)
-        , m_material(0)
-    {}
+    Brush() : m_origin(), m_rotation(1.0f), m_scale(1, 1, 1), m_material(0) {}
 
     virtual ~Brush() {}
 
@@ -56,13 +48,17 @@ public:
 
     /** @brief sets the rotation (in radians) in each dimension (xyz) */
     inline void set_rotation(const glm::vec3 &rotation) {
-        const glm::quat rotx = glm::rotate(glm::quat(), rotation.x, { 1.0f, 0.0f, 0.0f });
-        const glm::quat roty = glm::rotate(glm::quat(), rotation.y, { 0.0f, 1.0f, 0.0f });
-        const glm::quat rotz = glm::rotate(glm::quat(), rotation.z, { 0.0f, 0.0f, 1.0f });
+        const glm::quat rotx =
+                glm::rotate(glm::quat(), rotation.x, { 1.0f, 0.0f, 0.0f });
+        const glm::quat roty =
+                glm::rotate(glm::quat(), rotation.y, { 0.0f, 1.0f, 0.0f });
+        const glm::quat rotz =
+                glm::rotate(glm::quat(), rotation.z, { 0.0f, 0.0f, 1.0f });
         m_rotation = mat3_cast(rotx * roty * rotz);
     }
 
-    /** @brief sets the scale in each dimension (xyz). By default the scale is 1 */
+    /** @brief sets the scale in each dimension (xyz). By default the scale is 1
+     */
     inline void set_scale(const glm::vec3 &scale) {
         m_scale = scale;
     }

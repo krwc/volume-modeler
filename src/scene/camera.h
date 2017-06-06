@@ -1,8 +1,8 @@
 #ifndef VM_SCENE_CAMERA_H
 #define VM_SCENE_CAMERA_H
-#include <iostream>
 #include <glm/glm.hpp>
 #include <glm/gtc/quaternion.hpp>
+#include <iostream>
 
 namespace vm {
 

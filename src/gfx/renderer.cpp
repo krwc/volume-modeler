@@ -1,7 +1,7 @@
 #include "config.h"
 
-#include "renderer.h"
 #include "image.h"
+#include "renderer.h"
 
 #include "scene/scene.h"
 
@@ -11,34 +11,24 @@
 
 #include <glm/glm.hpp>
 #include <iostream>
-#include <sstream>
 #include <set>
+#include <sstream>
 
 namespace vm {
 using namespace glm;
 using namespace std;
 
 namespace {
-const vec2 quad[] = {
-    { -1, -1 }, { 1, -1 }, { -1, 1 },
-    { -1, 1 },  { 1, -1 }, { 1, 1 }
-};
+const vec2 quad[] = { { -1, -1 }, { 1, -1 }, { -1, 1 },
+                      { -1, 1 },  { 1, -1 }, { 1, 1 } };
 }
 
 void Renderer::init_buffer() {
-    m_triangle_vbo = make_unique<Buffer>(BufferDesc{
-        GL_ARRAY_BUFFER,
-        GL_STATIC_DRAW,
-        quad,
-        sizeof(quad)
-    });
+    m_triangle_vbo = make_unique<Buffer>(
+            BufferDesc{ GL_ARRAY_BUFFER, GL_STATIC_DRAW, quad, sizeof(quad) });
 
-    m_shape_vbo = make_unique<Buffer>(BufferDesc{
-        GL_ARRAY_BUFFER,
-        GL_DYNAMIC_DRAW,
-        nullptr,
-        4096
-    });
+    m_shape_vbo = make_unique<Buffer>(
+            BufferDesc{ GL_ARRAY_BUFFER, GL_DYNAMIC_DRAW, nullptr, 4096 });
 
     glEnableVertexArrayAttrib(m_geometry_vao, 0);
     glVertexArrayAttribFormat(m_geometry_vao, 0, 3, GL_FLOAT, GL_FALSE, 0);
@@ -84,12 +74,11 @@ void Renderer::init_materials(const vector<string> &materials) {
         }
 
         if (!m_material_array) {
-            m_material_array = make_unique<TextureArray>(TextureArrayDesc{
-                extents.begin()->first,
-                extents.begin()->second,
-                static_cast<int>(materials.size()),
-                GL_RGBA
-            });
+            m_material_array = make_unique<TextureArray>(
+                    TextureArrayDesc{ extents.begin()->first,
+                                      extents.begin()->second,
+                                      static_cast<int>(materials.size()),
+                                      GL_RGBA });
             m_material_array->set_parameter(GL_TEXTURE_MIN_FILTER,
                                             GL_LINEAR_MIPMAP_LINEAR);
             m_material_array->set_parameter(GL_TEXTURE_MAG_FILTER, GL_LINEAR);
@@ -103,11 +92,11 @@ void Renderer::init_materials(const vector<string> &materials) {
 
 Renderer::Renderer(shared_ptr<ComputeContext> ctx,
                    const vector<string> &materials)
-    : m_compute_ctx(ctx)
-    , m_geometry_vao()
-    , m_shape_vao()
-    , m_width(0)
-    , m_height(0) {
+        : m_compute_ctx(ctx)
+        , m_geometry_vao()
+        , m_shape_vao()
+        , m_width(0)
+        , m_height(0) {
     init_buffer();
     init_shaders();
     init_materials(materials);

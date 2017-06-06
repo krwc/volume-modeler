@@ -19,8 +19,7 @@ class Scan {
 
 public:
     Scan();
-    Scan(compute::command_queue &queue,
-         size_t input_size);
+    Scan(compute::command_queue &queue, size_t input_size);
 
     Scan(Scan &&) = default;
     Scan &operator=(Scan &&) = default;

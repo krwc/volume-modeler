@@ -7,8 +7,8 @@
 #include "utils/log.h"
 #include "utils/persistence.h"
 
-#include <glm/gtx/norm.hpp>
 #include <glm/gtc/type_ptr.hpp>
+#include <glm/gtx/norm.hpp>
 
 #include <algorithm>
 
@@ -49,8 +49,10 @@ void Scene::get_covered_region(const AABB &aabb,
     out_max = ivec3(INT_MIN, INT_MIN, INT_MIN);
 
     for (size_t i = 0; i < 3; ++i) {
-        out_min[i] = std::min(out_min[i], (int) floor(min[i] / CHUNK_WORLD_SIZE));
-        out_max[i] = std::max(out_max[i], (int) ceil(max[i] / CHUNK_WORLD_SIZE));
+        out_min[i] =
+                std::min(out_min[i], (int) floor(min[i] / CHUNK_WORLD_SIZE));
+        out_max[i] =
+                std::max(out_max[i], (int) ceil(max[i] / CHUNK_WORLD_SIZE));
     }
 }
 
@@ -67,12 +69,12 @@ compute::image_format Scene::edges_format() {
 Scene::Scene(const shared_ptr<ComputeContext> &compute_ctx,
              const shared_ptr<Camera> &camera,
              const string &scene_directory)
-        : m_compute_ctx(compute_ctx),
-          m_camera(camera),
-          m_chunks(),
-          m_archive(scene_directory, compute_ctx),
-          m_sampler(compute_ctx),
-          m_mesher(compute_ctx) {
+        : m_compute_ctx(compute_ctx)
+        , m_camera(camera)
+        , m_chunks()
+        , m_archive(scene_directory, compute_ctx)
+        , m_sampler(compute_ctx)
+        , m_mesher(compute_ctx) {
     init_persisted_chunks();
 }
 
@@ -83,7 +85,8 @@ vec3 Scene::get_chunk_origin(const ivec3 &coord) {
 void Scene::init_chunk(const shared_ptr<Chunk> &chunk) {
     lock_guard<mutex> queue_lock(m_compute_ctx->queue_mutex);
     const compute::float4_ fill_color(1e3, 1e3, 1e3, 1e3);
-    m_compute_ctx->queue.enqueue_fill_image<3>(chunk->samples, &fill_color,
+    m_compute_ctx->queue.enqueue_fill_image<3>(chunk->samples,
+                                               &fill_color,
                                                compute::dim(0, 0, 0),
                                                chunk->samples.size());
 }
@@ -94,27 +97,31 @@ void Scene::sample(const Brush &brush, dc::Sampler::Operation operation) {
     get_covered_region(brush.get_aabb(), region_min, region_max);
 
     for (int z = region_min.z; z <= region_max.z; ++z) {
-    for (int y = region_min.y; y <= region_max.y; ++y) {
-    for (int x = region_min.x; x <= region_max.x; ++x) {
-        const ivec3 coord{ x, y, z };
-        if (m_chunks.find(coord_hash(coord)) == m_chunks.end()) {
-            auto chunk = make_shared<Chunk>(coord, m_compute_ctx->context);
-            m_chunks.emplace(chunk_hash(chunk), chunk);
-            init_chunk(chunk);
-            LOG(trace) << "Created chunk (" << x << ',' << y << ',' << z
-                       << "), number of chunks: " << m_chunks.size();
-        }
-        auto chunk = m_chunks[coord_hash(coord)];
-        {
-            lock_guard<mutex> chunk_lock(chunk->mutex);
-            lock_guard<mutex> queue_lock(m_compute_ctx->queue_mutex);
-            m_sampler.sample(*chunk, brush, operation);
-            m_mesher.contour(*chunk);
-        }
+        for (int y = region_min.y; y <= region_max.y; ++y) {
+            for (int x = region_min.x; x <= region_max.x; ++x) {
+                const ivec3 coord{ x, y, z };
+                if (m_chunks.find(coord_hash(coord)) == m_chunks.end()) {
+                    auto chunk =
+                            make_shared<Chunk>(coord, m_compute_ctx->context);
+                    m_chunks.emplace(chunk_hash(chunk), chunk);
+                    init_chunk(chunk);
+                    LOG(trace) << "Created chunk (" << x << ',' << y << ',' << z
+                               << "), number of chunks: " << m_chunks.size();
+                }
+                auto chunk = m_chunks[coord_hash(coord)];
+                {
+                    lock_guard<mutex> chunk_lock(chunk->mutex);
+                    lock_guard<mutex> queue_lock(m_compute_ctx->queue_mutex);
+                    m_sampler.sample(*chunk, brush, operation);
+                    m_mesher.contour(*chunk);
+                }
 
-        // Queue this modified chunk to be persisted on the next occassion
-        m_archive.persist_later(chunk);
-    }}}
+                // Queue this modified chunk to be persisted on the next
+                // occassion
+                m_archive.persist_later(chunk);
+            }
+        }
+    }
     lock_guard<mutex> queue_lock(m_compute_ctx->queue_mutex);
     m_compute_ctx->queue.finish();
 }

@@ -18,8 +18,7 @@ Buffer &Buffer::operator=(Buffer &&other) {
 
 Buffer::Buffer() : m_id(GL_NONE) {}
 
-Buffer::Buffer(Buffer &&other)
-    : m_id(GL_NONE) {
+Buffer::Buffer(Buffer &&other) : m_id(GL_NONE) {
     *this = move(other);
 }
 
