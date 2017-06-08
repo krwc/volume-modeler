@@ -35,6 +35,7 @@ enqueue_read_image3d_async(compute::command_queue &queue,
                                        nullptr,
                                        &event.get());
     assert(retval == CL_SUCCESS);
+    (void) retval;
     return event;
 }
 
