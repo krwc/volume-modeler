@@ -2,6 +2,7 @@
 #cmakedefine VM_VOXEL_SIZE @VM_VOXEL_SIZE@
 
 #include "media/kernels/utils.h"
+#include "media/kernels/qef_solver.h"
 
 /* NOTE: The numbers are actually bitmasks */
 constant int edge_vertex[12][2] = {
@@ -82,34 +83,6 @@ bool is_edge_active(float samples[2][2][2], int edge) {
     return active_edge(s0, s1);
 }
 
-#define MAX_ITERATIONS 64
-float4 iterative_qef(const float4 position[12],
-                     const float4 normal[12],
-                     uint count) {
-    float4 m = (float4)(0,0,0,0);
-    for (uint i = 0; i < count; ++i) {
-        m += position[i];
-    }
-    m /= count;
-    for (uint i = 0; i < MAX_ITERATIONS; ++i) {
-        float4 F = (float4)(0, 0, 0, 0);
-        float4 n;
-        float4 p;
-        for (uint j = 0; j < count; ++j) {
-            n = normal[j];
-            p = position[j];
-            F += dot(n, p - m) * n;
-        }
-        F *= (1.0f - (float) i / MAX_ITERATIONS) / count;
-        m += F;
-
-        if (dot(F, F) < 1e-9) {
-            break;
-        }
-    }
-    return m;
-}
-
 kernel void solve_qef(read_only image3d_t samples,
                       read_only image3d_t edges_x,
                       read_only image3d_t edges_y,
@@ -152,7 +125,7 @@ kernel void solve_qef(read_only image3d_t samples,
             x + DIM_EXTENDED_VOXEL_GRID * (y + DIM_EXTENDED_VOXEL_GRID * z);
 
     if (active_edges > 0) {
-        const float4 vertex = iterative_qef(positions, normals, active_edges);
+        const float3 vertex = qef_solve(positions, normals, active_edges);
         voxel_vertices[3 * index + 0] = vertex.x;
         voxel_vertices[3 * index + 1] = vertex.y;
         voxel_vertices[3 * index + 2] = vertex.z;
