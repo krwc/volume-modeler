@@ -125,7 +125,11 @@ kernel void solve_qef(read_only image3d_t samples,
             x + DIM_EXTENDED_VOXEL_GRID * (y + DIM_EXTENDED_VOXEL_GRID * z);
 
     if (active_edges > 0) {
-        const float3 vertex = qef_solve(positions, normals, active_edges);
+        const float3 voxel_min = vertex_at(x + 0, y + 0, z + 0, chunk_origin);
+        const float3 voxel_max = vertex_at(x + 1, y + 1, z + 1, chunk_origin);
+        const float3 vertex = qef_solve(
+                positions, normals, active_edges, &voxel_min, &voxel_max);
+
         voxel_vertices[3 * index + 0] = vertex.x;
         voxel_vertices[3 * index + 1] = vertex.y;
         voxel_vertices[3 * index + 2] = vertex.z;

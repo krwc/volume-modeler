@@ -43,8 +43,9 @@ void Scene::init_persisted_chunks() {
 void Scene::get_covered_region(const AABB &aabb,
                                ivec3 &out_min,
                                ivec3 &out_max) {
-    const vec3 min = aabb.min + float(0.5 * CHUNK_WORLD_SIZE);
-    const vec3 max = aabb.max - float(0.5 * CHUNK_WORLD_SIZE);
+    // Not 0.5, due to lack of precision and artifacts caused by it.
+    const vec3 min = aabb.min + float(0.45 * CHUNK_WORLD_SIZE);
+    const vec3 max = aabb.max - float(0.45 * CHUNK_WORLD_SIZE);
     out_min = ivec3(INT_MAX, INT_MAX, INT_MAX);
     out_max = ivec3(INT_MIN, INT_MIN, INT_MIN);
 

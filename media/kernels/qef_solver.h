@@ -122,7 +122,9 @@ void solve_lstsq(float A[3][3], float b[3], float x[3], float threshold) {
 
 float3 qef_solve(const float4 *points,
                  const float4 *normals,
-                 uint num_points) {
+                 uint num_points,
+                 const float3 *voxel_min,
+                 const float3 *voxel_max) {
     /**
      * In the original Dual Contouring paper, they perform some kind of implicit
      * QR on the data just to form C = R^T * R in the end. Maybe I'm missing
@@ -170,9 +172,10 @@ float3 qef_solve(const float4 *points,
     AtA[2][0] = AtA[0][2];
     AtA[2][1] = AtA[1][2];
 
-    masspoint[0] /= num_points;
-    masspoint[1] /= num_points;
-    masspoint[2] /= num_points;
+    /* Make sure, that at least masspoint lies within the voxel */
+    masspoint[0] = clamp(masspoint[0] / num_points, voxel_min->x, voxel_max->x);
+    masspoint[1] = clamp(masspoint[1] / num_points, voxel_min->y, voxel_max->y);
+    masspoint[2] = clamp(masspoint[2] / num_points, voxel_min->z, voxel_max->z);
 
     for (int j = 0; j < 3; ++j) {
         for (int i = 0; i < 3; ++i) {
