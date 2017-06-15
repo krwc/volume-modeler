@@ -8,17 +8,17 @@
 void sym_schur2(const float A[3][3], int p, int q, float *out_c, float *out_s) {
     float c = 1.0f;
     float s = 0.0f;
-    if (A[p][q] != 0) {
-        float tau = (A[q][q] - A[p][p]) / (2.0f * A[p][q]);
-        float t;
-        if (tau >= 0) {
-            t = 1.0f / (tau + hypot(1.0f, tau));
-        } else {
-            t = 1.0f / (tau - hypot(1.0f, tau));
-        }
-        c = 1.0f / hypot(1.0f, t);
-        s = t * c;
+    // NOTE: Case where A[p][q] == 0 is ommited, as the check against it is
+    // performed in jacobi_eigen()
+    float tau = (A[q][q] - A[p][p]) / (2.0f * A[p][q]);
+    float t;
+    if (tau >= 0) {
+        t = 1.0f / (tau + hypot(1.0f, tau));
+    } else {
+        t = 1.0f / (tau - hypot(1.0f, tau));
     }
+    c = 1.0f / hypot(1.0f, t);
+    s = t * c;
     *out_c = c;
     *out_s = s;
 }
@@ -28,6 +28,9 @@ void jacobi_eigen(float A[3][3], float V[3][3]) {
     while (sweeps_to_go-- > 0) {
         for (int p = 0; p < 2; ++p) {
             for (int q = p + 1; q < 3; ++q) {
+                if (A[p][q] == 0) {
+                    continue;
+                }
                 float c;
                 float s;
                 sym_schur2(A, p, q, &c, &s);
