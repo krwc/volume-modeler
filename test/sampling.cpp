@@ -55,11 +55,6 @@ int sign(float value) {
     }
 }
 
-float sdf_ball(const glm::vec3 &p, const glm::vec3 &scale = { 1, 1, 1 }) {
-    return (glm::length(p / scale) - 1)
-           * glm::min(glm::min(scale.x, scale.y), scale.z);
-}
-
 float sdf_cube(const glm::vec3 &q, const glm::vec3 &scale = { 1, 1, 1 }) {
     glm::vec3 p = glm::abs(q);
     return glm::max(p.x - scale.x, glm::max(p.y - scale.y, p.z - scale.z));
