@@ -17,17 +17,17 @@ struct TestContext {
     std::shared_ptr<vm::ComputeContext> compute_ctx;
 
     vm::Chunk chunk;
-    std::vector<float> cpu_samples;
-    std::vector<uint16_t> gpu_samples;
+    std::vector<int16_t> cpu_samples;
+    std::vector<int16_t> gpu_samples;
 
     TestContext()
             : compute_ctx(vm::make_compute_context())
             , chunk({ 0, 0, 0 }, compute_ctx->context, 0)
             , cpu_samples((VM_CHUNK_SIZE + 3) * (VM_CHUNK_SIZE + 3)
                                   * (VM_CHUNK_SIZE + 3),
-                          1e3)
+                          2)
             , gpu_samples(cpu_samples.size(), 0) {
-        const compute::float4_ fill_color(1e3, 1e3, 1e3, 1e3);
+        const compute::short4_ fill_color(2, 2, 2, 2);
         compute_ctx->queue.enqueue_fill_image<3>(chunk.samples,
                                                  &fill_color,
                                                  compute::dim(0, 0, 0),
@@ -45,7 +45,7 @@ vertex_at(int x, int y, int z, const glm::vec3 &origin = { 0, 0, 0 }) {
     return float(VM_VOXEL_SIZE) * (glm::vec3(x, y, z) - half_dim) + origin;
 }
 
-int sign(float value) {
+int16_t sign(float value) {
     if (value == 0) {
         return 0;
     } else if (value < 0) {
@@ -76,9 +76,9 @@ TEST(sampler, signs_match) {
                 const size_t index =
                         k + (VM_CHUNK_SIZE + 3) * (j + (VM_CHUNK_SIZE + 3) * i);
                 const glm::vec3 p = vertex_at(k, j, i) - cube.get_origin();
-                ctx.cpu_samples[index] =
+                ctx.cpu_samples[index] = sign(
                         glm::min(ctx.cpu_samples[index],
-                                 sdf_cube(p, 0.5f * cube.get_scale()));
+                                 sign(sdf_cube(p, 0.5f * cube.get_scale()))));
             }
         }
     }
@@ -96,8 +96,7 @@ TEST(sampler, signs_match) {
             for (size_t k = 0; k < VM_CHUNK_SIZE + 3; ++k) {
                 const size_t index =
                         k + (VM_CHUNK_SIZE + 3) * (j + (VM_CHUNK_SIZE + 3) * i);
-                ASSERT_EQ(sign(ctx.cpu_samples[index]),
-                          sign(glm::unpackHalf1x16(ctx.gpu_samples[index])));
+                ASSERT_EQ(ctx.cpu_samples[index], ctx.gpu_samples[index]);
             }
         }
     }
