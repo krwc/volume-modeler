@@ -23,7 +23,7 @@ namespace fs = boost::filesystem;
 
 namespace vm {
 
-static const uint16_t ARCHIVE_VERSION = 1;
+static const uint16_t ARCHIVE_VERSION = 2;
 
 struct ArchiveHeader {
     uint16_t version;
