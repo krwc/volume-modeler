@@ -5,12 +5,22 @@ constant sampler_t nearest_sampler = CLK_NORMALIZED_COORDS_FALSE
                                      | CLK_ADDRESS_CLAMP_TO_EDGE
                                      | CLK_FILTER_NEAREST;
 
-float sample_at(read_only image3d_t samples, int x, int y, int z) {
-    return read_imagef(samples, nearest_sampler, (int4)(x, y, z, 0)).x;
+short sample_at(read_only image3d_t samples, int x, int y, int z) {
+    return read_imagei(samples, nearest_sampler, (int4)(x, y, z, 0)).x;
 }
 
-bool active_edge(float s0, float s1) {
+bool active_edge(short s0, short s1) {
     return (s0 > 0 && s1 == 0) || (s0 == 0 && s1 > 0) || (s0 * s1 < 0);
+}
+
+short as_sign(float value) {
+    if (value < 0) {
+        return -1;
+    } else if (value > 0) {
+        return 1;
+    } else {
+        return 0;
+    }
 }
 
 /* No typeof() support in core it seems */

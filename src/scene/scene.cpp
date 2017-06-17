@@ -59,7 +59,7 @@ void Scene::get_covered_region(const AABB &aabb,
 
 compute::image_format Scene::samples_format() {
     return compute::image_format(compute::image_format::r,
-                                 compute::image_format::float16);
+                                 compute::image_format::signed_int16);
 }
 
 compute::image_format Scene::edges_format() {
@@ -75,7 +75,8 @@ Scene::Scene(const shared_ptr<ComputeContext> &compute_ctx,
         , m_chunks()
         , m_archive(scene_directory, compute_ctx)
         , m_sampler(compute_ctx)
-        , m_mesher(compute_ctx) {
+        , m_mesher(compute_ctx)
+        , m_last_sampling_point(NAN, NAN, NAN) {
     init_persisted_chunks();
 }
 
@@ -85,7 +86,7 @@ vec3 Scene::get_chunk_origin(const ivec3 &coord) {
 
 void Scene::init_chunk(const shared_ptr<Chunk> &chunk) {
     lock_guard<mutex> queue_lock(m_compute_ctx->queue_mutex);
-    const compute::float4_ fill_color(1e3, 1e3, 1e3, 1e3);
+    const compute::short4_ fill_color(2, 2, 2, 2);
     m_compute_ctx->queue.enqueue_fill_image<3>(chunk->samples,
                                                &fill_color,
                                                compute::dim(0, 0, 0),
@@ -93,6 +94,12 @@ void Scene::init_chunk(const shared_ptr<Chunk> &chunk) {
 }
 
 void Scene::sample(const Brush &brush, dc::Sampler::Operation operation) {
+    if (m_last_sampling_point == brush.get_origin()) {
+        return;
+    } else {
+        m_last_sampling_point = brush.get_origin();
+    }
+
     ivec3 region_min;
     ivec3 region_max;
     get_covered_region(brush.get_aabb(), region_min, region_max);

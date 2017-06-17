@@ -275,6 +275,7 @@ int main(int argc, char **argv) {
     }
     g_scene = make_unique<vm::Scene>(g_compute_ctx, g_camera,
                                      scene_persistence_dir);
+#if 0
     vm::BrushCube cube;
     cube.set_rotation(glm::radians(glm::vec3{45.0f, 0.0f, 0.0f}));
     g_scene->add(cube);
@@ -282,6 +283,7 @@ int main(int argc, char **argv) {
     g_scene->add(cube);
     cube.set_rotation(glm::radians(glm::vec3{0.0f, 0.0f, 45.0f}));
     g_scene->add(cube);
+#endif
 #if 0
     const int size = 20;
     for (int z = -size/2; z < size/2; ++z) {

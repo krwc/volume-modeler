@@ -61,8 +61,7 @@ void Sampler::sample(Chunk &chunk, const Brush &brush, Operation operation) {
 
     const size_t N = VM_CHUNK_SIZE;
     enqueue_auto_distributed_nd_range_kernel<3>(
-            m_compute_ctx->queue, sampler, compute::dim(N + 3, N + 3, N + 3))
-            .wait();
+            m_compute_ctx->queue, sampler, compute::dim(N + 3, N + 3, N + 3));
 
     updater.set_arg(2, chunk_origin);
     updater.set_arg(3, brush_origin);

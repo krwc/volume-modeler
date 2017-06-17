@@ -40,22 +40,24 @@ kernel void sample(read_only image3d_t samples_in,
         return;
     }
 
-    const float old_sample =
-            read_imagef(samples_in, nearest_sampler, (int4)(x, y, z, 0)).x;
+    const short old_sample =
+            read_imagei(samples_in, nearest_sampler, (int4)(x, y, z, 0)).x;
 
-    float new_sample = sdf_func(vertex_at(x, y, z, chunk_origin), brush_origin,
-                                brush_scale, brush_rotation);
+    short new_sample = as_sign(sdf_func(vertex_at(x, y, z, chunk_origin),
+                                     brush_origin,
+                                     brush_scale,
+                                     brush_rotation));
     switch (operation_type) {
     default:
     case OPERATION_ADD:
         new_sample = min(new_sample, old_sample);
         break;
     case OPERATION_SUB:
-        new_sample = max(-new_sample, old_sample);
+        new_sample = max((short)(-new_sample), old_sample);
         break;
     }
-    write_imagef(samples_out, (int4)(x, y, z, 0),
-                 (float4)(new_sample, 0, 0, 0));
+    write_imagei(samples_out, (int4)(x, y, z, 0),
+                 (int4)(new_sample, 0, 0, 0));
 }
 
 float3 compute_sdf_normal(float3 p,
@@ -96,8 +98,8 @@ kernel void update_edges(write_only image3d_t edges,
 
     float3 v0 = vertex_at(x0, y0, z0, chunk_origin);
     float3 v1 = vertex_at(x1, y1, z1, chunk_origin);
-    float s0 = sdf_func(v0, brush_origin, brush_scale, brush_rotation);
-    float s1 = sdf_func(v1, brush_origin, brush_scale, brush_rotation);
+    short s0 = as_sign(sdf_func(v0, brush_origin, brush_scale, brush_rotation));
+    short s1 = as_sign(sdf_func(v1, brush_origin, brush_scale, brush_rotation));
 
     /* This must be weaker than active_edge() or otherwise SDF subtraction
        won't work. */
@@ -105,10 +107,10 @@ kernel void update_edges(write_only image3d_t edges,
         /* No sign change */
         return;
     }
+
     /* Swap, so that s0 is always inside and s1 outside the volume */
     bool swapped = false;
     if (s0 > s1) {
-        swap(float, s0, s1);
         swap(float3, v0, v1);
         swapped = true;
     }

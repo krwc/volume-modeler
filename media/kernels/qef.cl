@@ -75,11 +75,11 @@ float3 edge_p1(int vx, int vy, int vz, int edge, float3 chunk_origin) {
     return vertex_at(vx + offset.x, vy + offset.y, vz + offset.z, chunk_origin);
 }
 
-bool is_edge_active(float samples[2][2][2], int edge) {
+bool is_edge_active(short signs[2][2][2], int edge) {
     const int3 v0 = edge_vertex_offset(edge, 0);
     const int3 v1 = edge_vertex_offset(edge, 1);
-    const float s0 = samples[v0.z][v0.y][v0.x];
-    const float s1 = samples[v1.z][v1.y][v1.x];
+    const short s0 = signs[v0.z][v0.y][v0.x];
+    const short s1 = signs[v1.z][v1.y][v1.x];
     return active_edge(s0, s1);
 }
 
@@ -98,7 +98,7 @@ kernel void solve_qef(read_only image3d_t samples,
     }
     /* Each sample in a voxel will be accessed more than once, so it makes
        sense to not fetch it from the global memory every time. */
-    float values[2][2][2];
+    short values[2][2][2];
     for (int k = 0; k < 2; ++k) {
         for (int j = 0; j < 2; ++j) {
             for (int i = 0; i < 2; ++i) {
