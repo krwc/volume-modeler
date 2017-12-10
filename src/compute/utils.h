@@ -3,6 +3,8 @@
 
 #include "compute/context.h"
 
+#include <stdexcept>
+
 namespace vm {
 
 // Boost.Compute does not have templated overload that allows to run nd-range
@@ -45,6 +47,44 @@ enqueue_write_image3d(compute::command_queue &queue,
                       const void *hostptr) {
     return queue.enqueue_write_image<3>(
             image, compute::dim(0, 0, 0), image.size(), hostptr);
+}
+
+static inline size_t
+image_format_size(const compute::image_format &format) {
+    auto num_channels = [&]() {
+        switch (format.get_format_ptr()->image_channel_order) {
+        case CL_R:
+        case CL_A:
+        case CL_INTENSITY:
+        case CL_LUMINANCE:
+            return 1;
+        case CL_RG:
+        case CL_RA:
+            return 2;
+        case CL_RGB:
+            return 3;
+        case CL_RGBA:
+        case CL_ARGB:
+        case CL_BGRA:
+            return 4;
+        default:
+            throw std::invalid_argument("unsupported channel ordering");
+        }
+    };
+    auto channel_size = [&]() {
+        switch (format.get_format_ptr()->image_channel_data_type) {
+        case CL_SIGNED_INT8:
+        case CL_UNSIGNED_INT8:
+            return 1;
+        case CL_SIGNED_INT16:
+        case CL_UNSIGNED_INT16:
+        case CL_HALF_FLOAT:
+            return 2;
+        default:
+            throw std::invalid_argument("unsupported channel format");
+        }
+    };
+    return num_channels() * channel_size();
 }
 
 } // namespace vm
