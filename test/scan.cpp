@@ -23,7 +23,7 @@ struct TestContext {
             , gpu_scan_result(input_size)
             , input(input_size, context)
             , output(input_size, context)
-            , gpu_scan(queue, input_size) {
+            , gpu_scan(context) {
 
         for (size_t i = 0; i < numbers.size(); ++i) {
             numbers[i] = i % 8;

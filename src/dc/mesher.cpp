@@ -21,7 +21,6 @@ void Mesher::init_buffers() {
     // Allocating a bigger buffer makes compute kernels easier to write
     // though.
     const size_t num_edges = 3 * SAMPLE_3D_GRID_SIZE;
-    m_edges_scan = move(Scan(m_compute_ctx->queue, num_edges));
     m_edge_mask = compute::vector<uint32_t>(num_edges, m_compute_ctx->context);
     m_scanned_edges =
             compute::vector<uint32_t>(num_edges, m_compute_ctx->context);
@@ -32,7 +31,6 @@ void Mesher::init_buffers() {
     compute::fill(
             m_edge_mask.begin(), m_edge_mask.end(), 0, m_compute_ctx->queue);
 
-    m_voxels_scan = move(Scan(m_compute_ctx->queue, VOXEL_3D_GRID_SIZE));
     m_voxel_mask = compute::vector<uint32_t>(VOXEL_3D_GRID_SIZE,
                                              m_compute_ctx->context);
     m_scanned_voxels = compute::vector<uint32_t>(VOXEL_3D_GRID_SIZE,
@@ -71,6 +69,8 @@ void Mesher::init_kernels() {
 
 Mesher::Mesher(const shared_ptr<ComputeContext> &compute_ctx)
         : m_compute_ctx(compute_ctx)
+        , m_edges_scan(compute_ctx->context)
+        , m_voxels_scan(compute_ctx->context)
         , m_unordered_queue(compute_ctx->make_out_of_order_queue()) {
     init_buffers();
     init_kernels();

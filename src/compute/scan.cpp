@@ -75,33 +75,15 @@ static size_t align_to_block_size(size_t input, size_t block_size) {
 }
 } // namespace
 
-Scan::Scan()
-        : m_input_size(0)
-        , m_aligned_size(0)
-        , m_phases()
-        , m_local_inclusive_scan()
-        , m_fixup_scan() {}
-
-Scan::Scan(compute::command_queue &queue, size_t input_size)
-        : m_input_size(input_size)
-        , m_aligned_size(align_to_block_size(input_size, Scan::BLOCK_SIZE))
-        , m_phases()
-        , m_local_inclusive_scan()
-        , m_fixup_scan() {
-    {
-        auto program =
-                compute::program::create_with_source(scan_source,
-                                                     queue.get_context());
-        std::ostringstream inclusive_opts;
-        inclusive_opts << " -DBLK_SIZE=" << Scan::BLOCK_SIZE;
-        program.build(inclusive_opts.str());
-        m_local_inclusive_scan = program.create_kernel("local_scan");
-        m_fixup_scan = program.create_kernel("fixup_scan");
+void Scan::ensure_buffers_ready(compute::command_queue &queue,
+                                size_t input_size) {
+    if (m_last_input_size == input_size) {
+        return;
     }
-
+    m_phases.clear();
     size_t num_phases = 0;
     {
-        size_t size = m_input_size;
+        size_t size = input_size;
         while (size > Scan::BLOCK_SIZE) {
             ++num_phases;
             size /= Scan::BLOCK_SIZE;
@@ -115,14 +97,33 @@ Scan::Scan(compute::command_queue &queue, size_t input_size)
                        << " elements on phase " << num_phases << endl;
         }
     }
+    m_last_input_size = input_size;
+    m_aligned_size = align_to_block_size(input_size, Scan::BLOCK_SIZE);
+}
+
+Scan::Scan(compute::context &context)
+        : m_last_input_size(0)
+        , m_aligned_size(0)
+        , m_phases()
+        , m_local_inclusive_scan()
+        , m_fixup_scan() {
+    {
+        auto program =
+                compute::program::create_with_source(scan_source, context);
+        std::ostringstream inclusive_opts;
+        inclusive_opts << " -DBLK_SIZE=" << Scan::BLOCK_SIZE;
+        program.build(inclusive_opts.str());
+        m_local_inclusive_scan = program.create_kernel("local_scan");
+        m_fixup_scan = program.create_kernel("fixup_scan");
+    }
 }
 
 compute::event Scan::inclusive_scan(compute::vector<uint32_t> &input,
                                     compute::vector<uint32_t> &output,
                                     compute::command_queue &queue,
                                     const compute::wait_list &events) {
-    assert(input.size() == m_input_size);
-    assert(output.size() >= m_input_size);
+    assert(output.size() >= input.size());
+    ensure_buffers_ready(queue, input.size());
 
     m_local_inclusive_scan.set_arg(0, input);
     m_local_inclusive_scan.set_arg(1, output);
@@ -131,7 +132,7 @@ compute::event Scan::inclusive_scan(compute::vector<uint32_t> &input,
     } else {
         m_local_inclusive_scan.set_arg(2, NULL);
     }
-    m_local_inclusive_scan.set_arg(3, static_cast<cl_uint>(m_input_size));
+    m_local_inclusive_scan.set_arg(3, static_cast<cl_uint>(input.size()));
     compute::event event;
     event = queue.enqueue_1d_range_kernel(m_local_inclusive_scan,
                                           0,

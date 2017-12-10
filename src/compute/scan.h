@@ -7,7 +7,7 @@ namespace vm {
 class Scan {
     static const constexpr size_t BLOCK_SIZE = 1024;
 
-    size_t m_input_size;
+    size_t m_last_input_size;
     size_t m_aligned_size;
     /**
      * Arrays keeping temporaries generated during scan on number of elements
@@ -17,9 +17,10 @@ class Scan {
     compute::kernel m_local_inclusive_scan;
     compute::kernel m_fixup_scan;
 
+    void ensure_buffers_ready(compute::command_queue &queue, size_t input_size);
+
 public:
-    Scan();
-    Scan(compute::command_queue &queue, size_t input_size);
+    Scan(compute::context &context);
 
     Scan(Scan &&) = default;
     Scan &operator=(Scan &&) = default;
