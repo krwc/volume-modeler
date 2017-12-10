@@ -70,7 +70,7 @@ kernel void make_indices(global uint *out_ibo,
         break;
     }
 
-    float value = sample_at(samples, e0x, e0y, e0z);
+    short value = sample_at(samples, e0x, e0y, e0z);
     int triangulation = value <= 0 ? 0 : 1;
     const uint index = 6 * (scanned_edges[tid] - 1);
     for (uint i = 0; i < 6; ++i) {

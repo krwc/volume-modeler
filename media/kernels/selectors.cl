@@ -33,8 +33,8 @@ kernel void select_active_edges(global uint *out_selection,
      */
     const uint index = 3 * (x + SAMPLE_GRID_DIM * (y + SAMPLE_GRID_DIM * z));
 
-    float s0 = sample_at(samples, x, y, z);
-    float3 s1 = (float3)(sample_at(samples, x + 1, y, z),
+    short s0 = sample_at(samples, x, y, z);
+    short3 s1 = (short3)(sample_at(samples, x + 1, y, z),
                          sample_at(samples, x, y + 1, z),
                          sample_at(samples, x, y, z + 1));
     if (x < VOXEL_GRID_DIM) {
