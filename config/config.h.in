@@ -2,7 +2,7 @@
 #cmakedefine VM_VOXEL_SIZE @VM_VOXEL_SIZE@
 #cmakedefine VM_CHUNK_SIZE @VM_CHUNK_SIZE@
 /** Number of voxels in a single dimension. */
-#define VOXEL_GRID_DIM (@VM_CHUNK_SIZE@ + 2)
+#define VOXEL_GRID_DIM @VM_CHUNK_SIZE@
 /** Total number of voxels within a chunk. */
 #define VOXEL_3D_GRID_SIZE (VOXEL_GRID_DIM * VOXEL_GRID_DIM * VOXEL_GRID_DIM)
 
