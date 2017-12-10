@@ -148,13 +148,13 @@ void realloc_ibo_if_necessary(std::shared_ptr<ComputeContext> &ctx,
 void Mesher::enqueue_contour(Chunk &chunk) {
     uint32_t num_voxels = m_scanned_voxels.back();
     uint32_t num_edges = m_scanned_edges.back();
+    chunk.num_indices = 6 * num_edges;
     if (!num_voxels || !num_edges) {
         // Nothing to do.
         return;
     }
     realloc_vbo_if_necessary(m_compute_ctx, chunk, num_voxels);
     realloc_ibo_if_necessary(m_compute_ctx, chunk, num_edges);
-    chunk.num_indices = 6 * num_edges;
 
     // Ensure we don't have any race with acquire commands.
     glFinish();
