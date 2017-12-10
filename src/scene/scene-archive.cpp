@@ -1,12 +1,11 @@
 #include "config.h"
 
 #include "scene-archive.h"
+#include "scene.h"
 #include "utils/log.h"
 #include "utils/persistence.h"
 
 #include "compute/utils.h"
-
-#include <cassert>
 
 #include <boost/filesystem.hpp>
 #include <boost/format.hpp>
@@ -23,13 +22,15 @@ namespace fs = boost::filesystem;
 
 namespace vm {
 
-static const uint16_t ARCHIVE_VERSION = 2;
+static const uint16_t ARCHIVE_VERSION = 3;
 
 struct ArchiveHeader {
     uint16_t version;
     uint16_t chunk_size;
     uint16_t chunk_border;
     double voxel_size;
+    uint16_t edge_size;
+    uint16_t sample_size;
 };
 
 namespace detail {
@@ -39,6 +40,8 @@ static void validate_header(fstream &file) {
     file >= header.version;
     file >= header.chunk_size;
     file >= header.voxel_size;
+    file >= header.edge_size;
+    file >= header.sample_size;
 
     if (header.version != ARCHIVE_VERSION) {
         throw runtime_error(
@@ -58,13 +61,27 @@ static void validate_header(fstream &file) {
                            % VM_VOXEL_SIZE
                            % header.voxel_size));
     }
+    if (header.edge_size != image_format_size(Scene::edges_format())) {
+        throw runtime_error(
+                boost::str(boost::format("Expected edge size %1%, got: %2%")
+                           % image_format_size(Scene::edges_format())
+                           % header.edge_size));
+    }
+    if (header.sample_size != image_format_size(Scene::samples_format())) {
+        throw runtime_error(
+                boost::str(boost::format("Expected sample size %1%, got: %2%")
+                           % image_format_size(Scene::samples_format())
+                           % header.sample_size));
+    }
 }
 
 static void write_header(ofstream &file) {
     // clang-format off
     file <= static_cast<uint16_t>(ARCHIVE_VERSION)
          <= static_cast<uint16_t>(VM_CHUNK_SIZE)
-         <= static_cast<double>(VM_VOXEL_SIZE);
+         <= static_cast<double>(VM_VOXEL_SIZE)
+         <= static_cast<uint16_t>(image_format_size(Scene::edges_format()))
+         <= static_cast<uint16_t>(image_format_size(Scene::samples_format()));
     // clang-format on
 }
 
@@ -136,13 +153,14 @@ void SceneArchive::persist_later(shared_ptr<Chunk> chunk) {
     ]() {
         const size_t N = VM_CHUNK_SIZE;
 
-        vector<uint8_t> samples(sizeof(uint16_t) * (N + 3) * (N + 3) * (N + 3));
-        vector<uint8_t> edges_x(4 * sizeof(uint16_t) * (N + 2) * (N + 3)
-                                * (N + 3));
-        vector<uint8_t> edges_y(4 * sizeof(uint16_t) * (N + 3) * (N + 2)
-                                * (N + 3));
-        vector<uint8_t> edges_z(4 * sizeof(uint16_t) * (N + 3) * (N + 3)
-                                * (N + 2));
+        vector<uint8_t> samples(image_format_size(Scene::samples_format())
+                                * (N + 3) * (N + 3) * (N + 3));
+        vector<uint8_t> edges_x(image_format_size(Scene::edges_format())
+                                * (N + 2) * (N + 3) * (N + 3));
+        vector<uint8_t> edges_y(image_format_size(Scene::edges_format())
+                                * (N + 3) * (N + 2) * (N + 3));
+        vector<uint8_t> edges_z(image_format_size(Scene::edges_format())
+                                * (N + 3) * (N + 3) * (N + 2));
         {
             lock_guard<mutex> queue_lock(queue_mutex);
             lock_guard<mutex> chunk_lock(chunk->mutex);
@@ -197,10 +215,14 @@ void SceneArchive::restore(shared_ptr<Chunk> chunk) {
     in.push(file);
 
     const size_t N = VM_CHUNK_SIZE;
-    vector<uint8_t> samples(sizeof(uint16_t) * (N + 3) * (N + 3) * (N + 3));
-    vector<uint8_t> edges_x(4 * sizeof(uint16_t) * (N + 2) * (N + 3) * (N + 3));
-    vector<uint8_t> edges_y(4 * sizeof(uint16_t) * (N + 3) * (N + 2) * (N + 3));
-    vector<uint8_t> edges_z(4 * sizeof(uint16_t) * (N + 3) * (N + 3) * (N + 2));
+    vector<uint8_t> samples(image_format_size(Scene::samples_format()) * (N + 3)
+                            * (N + 3) * (N + 3));
+    vector<uint8_t> edges_x(image_format_size(Scene::edges_format()) * (N + 2)
+                            * (N + 3) * (N + 3));
+    vector<uint8_t> edges_y(image_format_size(Scene::edges_format()) * (N + 3)
+                            * (N + 2) * (N + 3));
+    vector<uint8_t> edges_z(image_format_size(Scene::edges_format()) * (N + 3)
+                            * (N + 3) * (N + 2));
 
     boost::iostreams::read(
             in, reinterpret_cast<char *>(&samples[0]), samples.size());
