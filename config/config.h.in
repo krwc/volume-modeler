@@ -2,10 +2,6 @@
 #cmakedefine VM_CHUNK_SIZE @VM_CHUNK_SIZE@
 /** Size of a single voxel in a chunk. */
 #cmakedefine VM_VOXEL_SIZE @VM_VOXEL_SIZE@
-/** Additional texture border improving the quality of transitions between chunks */
-#cmakedefine VM_CHUNK_BORDER @VM_CHUNK_BORDER@
-/** Maximum number of chunks to render in a single pass */
-#cmakedefine VM_CHUNKS_PER_PASS @VM_CHUNKS_PER_PASS@
 /** Enables / disables QEF solver */
 #cmakedefine WITH_FEATURES
 /** Logger specific variable controlling removed prefix */
