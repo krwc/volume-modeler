@@ -1,5 +1,4 @@
-#cmakedefine VM_CHUNK_SIZE @VM_CHUNK_SIZE@
-#cmakedefine VM_VOXEL_SIZE @VM_VOXEL_SIZE@
+#include "config/config.h"
 
 #include "media/kernels/utils.h"
 
@@ -75,11 +74,9 @@ kernel void make_indices(global uint *out_ibo,
 
     float value = sample_at(samples, e0x, e0y, e0z);
     int triangulation = value <= 0 ? 0 : 1;
-#if 1
     const uint index = 6 * (scanned_edges[tid] - 1);
     for (uint i = 0; i < 6; ++i) {
         out_ibo[index + i] = scanned_voxels[cells[triangles[triangulation][i]]] - 1;
     }
-#endif
 }
 

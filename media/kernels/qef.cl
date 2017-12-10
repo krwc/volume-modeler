@@ -1,5 +1,4 @@
-#cmakedefine VM_CHUNK_SIZE @VM_CHUNK_SIZE@
-#cmakedefine VM_VOXEL_SIZE @VM_VOXEL_SIZE@
+#include "config/config.h"
 
 #include "media/kernels/utils.h"
 #include "media/kernels/qef_solver.h"
@@ -107,16 +106,24 @@ kernel void solve_qef(read_only image3d_t samples,
         }
     }
     uint active_edges = 0;
+#if defined(WITH_FEATURES)
     float4 positions[12];
     float4 normals[12];
+#else
+    float3 masspoint = (float3)(0,0,0);
+#endif // WITH_FEATURES
 
     for (int e = 0; e < 12; ++e) {
         if (is_edge_active(values, e)) {
             float3 p0 = edge_p0(x, y, z, e, chunk_origin);
             float3 p1 = edge_p1(x, y, z, e, chunk_origin);
             float4 tag = edge_data(edges_x, edges_y, edges_z, x, y, z, e);
+#if defined(WITH_FEATURES)
             positions[active_edges] = (float4)(mix(p0, p1, tag.w), 0);
             normals[active_edges] = (float4)(tag.xyz, 0);
+#else
+            masspoint += mix(p0, p1, tag.w);
+#endif // WITH_FEATURES
             ++active_edges;
         }
     }
@@ -127,9 +134,12 @@ kernel void solve_qef(read_only image3d_t samples,
     if (active_edges > 0) {
         const float3 voxel_min = vertex_at(x + 0, y + 0, z + 0, chunk_origin);
         const float3 voxel_max = vertex_at(x + 1, y + 1, z + 1, chunk_origin);
+#if defined(WITH_FEATURES)
         const float3 vertex = qef_solve(
                 positions, normals, active_edges, &voxel_min, &voxel_max);
-
+#else
+        const float3 vertex = masspoint / (float)(active_edges);
+#endif // WITH_FEATURES
         voxel_vertices[3 * index + 0] = vertex.x;
         voxel_vertices[3 * index + 1] = vertex.y;
         voxel_vertices[3 * index + 2] = vertex.z;

@@ -1,5 +1,4 @@
-#cmakedefine VM_CHUNK_SIZE @VM_CHUNK_SIZE@
-#cmakedefine VM_VOXEL_SIZE @VM_VOXEL_SIZE@
+#include "config/config.h"
 
 #include "media/kernels/utils.h"
 

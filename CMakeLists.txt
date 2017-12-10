@@ -21,6 +21,7 @@ set(VM_CHUNK_BORDER 2 CACHE STRING "Chunk border improving chunk transitions qua
 set(VM_VOXEL_SIZE 0.02 CACHE STRING "Size of the single voxel in chunk (0.02 recommended)")
 
 option(WITH_TEST "Enables/disables test suite compilation" ON)
+option(WITH_FEATURES "Enables/disables QEF solver" OFF)
 
 include_directories(src)
 add_subdirectory(src)
