@@ -23,6 +23,9 @@ set(VM_VOXEL_SIZE 0.02 CACHE STRING "Size of the single voxel in chunk (0.02 rec
 option(WITH_TEST "Enables/disables test suite compilation" ON)
 option(WITH_FEATURES "Enables/disables QEF solver" OFF)
 
+# Used by the logger module to remove path prefix.
+set(LOGGER_SOURCES_ROOT_DIR ${CMAKE_CURRENT_SOURCE_DIR})
+
 include_directories(src)
 add_subdirectory(src)
 add_subdirectory(third_party)

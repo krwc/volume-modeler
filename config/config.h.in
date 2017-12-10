@@ -8,3 +8,5 @@
 #cmakedefine VM_CHUNKS_PER_PASS @VM_CHUNKS_PER_PASS@
 /** Enables / disables QEF solver */
 #cmakedefine WITH_FEATURES
+/** Logger specific variable controlling removed prefix */
+#cmakedefine LOGGER_SOURCES_ROOT_DIR "@LOGGER_SOURCES_ROOT_DIR@"

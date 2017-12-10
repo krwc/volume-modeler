@@ -1,7 +1,10 @@
+#include <config.h>
+
 #include "log.h"
 #include <chrono>
 #include <iomanip>
 #include <iostream>
+#include <cstring>
 
 using namespace std;
 namespace vm {
@@ -28,10 +31,9 @@ static void write_severity(ostream &out, Severity severity) {
 
 static void
 write_short_source_name(ostream &out, const string &name, int line) {
-    auto idx = name.rfind("src/");
-    auto name_to_write = name;
-    if (idx != string::npos) {
-        name_to_write = name.substr(idx);
+    string name_to_write = name;
+    if (name.find(LOGGER_SOURCES_ROOT_DIR) == 0) {
+        name_to_write = name.substr(strlen(LOGGER_SOURCES_ROOT_DIR) + 1);
     }
     out << '(' << name_to_write << ':' << line << ')';
 }
