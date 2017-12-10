@@ -148,6 +148,10 @@ void realloc_ibo_if_necessary(std::shared_ptr<ComputeContext> &ctx,
 void Mesher::enqueue_contour(Chunk &chunk) {
     uint32_t num_voxels = m_scanned_voxels.back();
     uint32_t num_edges = m_scanned_edges.back();
+    if (!num_voxels || !num_edges) {
+        // Nothing to do.
+        return;
+    }
     realloc_vbo_if_necessary(m_compute_ctx, chunk, num_voxels);
     realloc_ibo_if_necessary(m_compute_ctx, chunk, num_edges);
     chunk.num_indices = 6 * num_edges;
@@ -155,13 +159,12 @@ void Mesher::enqueue_contour(Chunk &chunk) {
     // Ensure we don't have any race with acquire commands.
     glFinish();
 
-    // TODO: Why acquiring ibo and vbo together causes deadlocks?!
-    clEnqueueAcquireGLObjects(m_compute_ctx->queue.get(),
-                              1,
-                              &chunk.cl_vbo.get(),
-                              0,
-                              nullptr,
-                              nullptr);
+    const cl_mem buffers[] = {
+        chunk.cl_vbo.get(),
+        chunk.cl_ibo.get()
+    };
+    opengl_enqueue_acquire_gl_objects(2, buffers, m_compute_ctx->queue);
+
     m_copy_vertices.set_arg(0, chunk.cl_vbo);
     m_copy_vertices.set_arg(1, m_voxel_vertices);
     m_copy_vertices.set_arg(2, m_voxel_mask);
@@ -171,22 +174,6 @@ void Mesher::enqueue_contour(Chunk &chunk) {
                                                 compute::dim(
                                                         VOXEL_3D_GRID_SIZE));
 
-    clEnqueueReleaseGLObjects(m_compute_ctx->queue.get(),
-                              1,
-                              &chunk.cl_vbo.get(),
-                              0,
-                              nullptr,
-                              nullptr);
-
-    clEnqueueAcquireGLObjects(m_compute_ctx->queue.get(),
-                              1,
-                              &chunk.cl_ibo.get(),
-                              0,
-                              nullptr,
-                              nullptr);
-    // TODO: Why this is necessary? I mean, the queue is ordered after all
-    m_compute_ctx->queue.flush();
-    m_compute_ctx->queue.finish();
 
     m_make_indices.set_arg(0, chunk.cl_ibo);
     m_make_indices.set_arg(1, m_edge_mask);
@@ -196,14 +183,9 @@ void Mesher::enqueue_contour(Chunk &chunk) {
     enqueue_auto_distributed_nd_range_kernel<1>(
             m_compute_ctx->queue,
             m_make_indices,
-            compute::dim(3 * SAMPLE_3D_GRID_SIZE));
+            compute::dim(3 * SAMPLE_3D_GRID_SIZE)).wait();
 
-    clEnqueueReleaseGLObjects(m_compute_ctx->queue.get(),
-                              1,
-                              &chunk.cl_ibo.get(),
-                              0,
-                              nullptr,
-                              nullptr);
+    opengl_enqueue_release_gl_objects(2, buffers, m_compute_ctx->queue);
 
     m_compute_ctx->queue.flush();
     m_compute_ctx->queue.finish();
