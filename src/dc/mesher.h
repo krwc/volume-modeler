@@ -11,6 +11,7 @@ class Chunk;
 namespace dc {
 
 class Mesher {
+private:
     std::shared_ptr<ComputeContext> m_compute_ctx;
     compute::kernel m_select_active_edges;
     compute::kernel m_solve_qef;
@@ -41,6 +42,8 @@ class Mesher {
 
 public:
     Mesher(const std::shared_ptr<ComputeContext> &compute_ctx);
+    Mesher(const Mesher &) = delete;
+    Mesher &operator=(const Mesher &) = delete;
 
     void contour(Chunk &chunk);
 };

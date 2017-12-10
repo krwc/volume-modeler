@@ -1,7 +1,34 @@
-/** Size of each chunk of the scene. */
-#cmakedefine VM_CHUNK_SIZE @VM_CHUNK_SIZE@
-/** Size of a single voxel in a chunk. */
+/** Distance between two nearest on-axis samples. */
 #cmakedefine VM_VOXEL_SIZE @VM_VOXEL_SIZE@
+#cmakedefine VM_CHUNK_SIZE @VM_CHUNK_SIZE@
+/** Number of voxels in a single dimension. */
+#define VOXEL_GRID_DIM (@VM_CHUNK_SIZE@ + 2)
+/** Total number of voxels within a chunk. */
+#define VOXEL_3D_GRID_SIZE (VOXEL_GRID_DIM * VOXEL_GRID_DIM * VOXEL_GRID_DIM)
+
+/** Number of samples in a single dimension. */
+#define SAMPLE_GRID_DIM (VOXEL_GRID_DIM + 1)
+/** Total number of samples within a chunk. */
+#define SAMPLE_3D_GRID_SIZE \
+    (SAMPLE_GRID_DIM * SAMPLE_GRID_DIM * SAMPLE_GRID_DIM)
+
+#define AXIS_X 0
+#define AXIS_Y 1
+#define AXIS_Z 2
+#define EDGE_X_GRID_DIM(GridAxis) \
+    (((GridAxis) == AXIS_X) ? (SAMPLE_GRID_DIM) - 1 : (SAMPLE_GRID_DIM))
+#define EDGE_Y_GRID_DIM(GridAxis) \
+    (((GridAxis) == AXIS_Y) ? (SAMPLE_GRID_DIM) - 1 : (SAMPLE_GRID_DIM))
+#define EDGE_Z_GRID_DIM(GridAxis) \
+    (((GridAxis) == AXIS_Z) ? (SAMPLE_GRID_DIM) - 1 : (SAMPLE_GRID_DIM))
+
+#define EDGE_X_3D_GRID_SIZE \
+    (EDGE_X_GRID_DIM(AXIS_X) * EDGE_X_GRID_DIM(AXIS_Y) * EDGE_X_GRID_DIM(AXIS_Z))
+#define EDGE_Y_3D_GRID_SIZE \
+    (EDGE_Y_GRID_DIM(AXIS_X) * EDGE_Y_GRID_DIM(AXIS_Y) * EDGE_Y_GRID_DIM(AXIS_Z))
+#define EDGE_Z_3D_GRID_SIZE \
+    (EDGE_Z_GRID_DIM(AXIS_X) * EDGE_Z_GRID_DIM(AXIS_Y) * EDGE_Z_GRID_DIM(AXIS_Z))
+
 /** Enables / disables QEF solver */
 #cmakedefine WITH_FEATURES
 /** Logger specific variable controlling removed prefix */

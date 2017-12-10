@@ -7,8 +7,7 @@ kernel void copy_vertices(global float *out_vbo,
                           global const uint *voxel_mask,
                           global const uint *scanned_voxels) {
     const uint tid = get_global_id(0);
-    if (tid
-        >= (VM_CHUNK_SIZE + 2) * (VM_CHUNK_SIZE + 2) * (VM_CHUNK_SIZE + 2)) {
+    if (tid >= VOXEL_3D_GRID_SIZE) {
         return;
     }
     const uint mask = voxel_mask[tid];
@@ -22,7 +21,7 @@ kernel void copy_vertices(global float *out_vbo,
 }
 
 int voxel_index(int x, int y, int z) {
-    return x + (VM_CHUNK_SIZE + 2) * (y + (VM_CHUNK_SIZE + 2) * z);
+    return x + VOXEL_GRID_DIM * (y + VOXEL_GRID_DIM * z);
 }
 
 constant uint triangles[2][6] = {
@@ -37,8 +36,7 @@ kernel void make_indices(global uint *out_ibo,
                          read_only image3d_t samples) {
 
     const uint tid = get_global_id(0);
-    if (tid >= 3 * (VM_CHUNK_SIZE + 3) * (VM_CHUNK_SIZE + 3)
-                       * (VM_CHUNK_SIZE + 3)) {
+    if (tid >= 3 * SAMPLE_3D_GRID_SIZE) {
         return;
     }
 
@@ -47,9 +45,9 @@ kernel void make_indices(global uint *out_ibo,
     }
     const uint axis = tid % 3;
     const uint offset = (tid - axis) / 3;
-    int e0x = offset % (VM_CHUNK_SIZE + 3);
-    int e0y = ((offset - e0x) / (VM_CHUNK_SIZE + 3)) % (VM_CHUNK_SIZE + 3);
-    int e0z = ((offset - e0x) / (VM_CHUNK_SIZE + 3) - e0y) / (VM_CHUNK_SIZE+3);
+    int e0x = offset % SAMPLE_GRID_DIM;
+    int e0y = ((offset - e0x) / SAMPLE_GRID_DIM) % SAMPLE_GRID_DIM;
+    int e0z = ((offset - e0x) / SAMPLE_GRID_DIM - e0y) / SAMPLE_GRID_DIM;
 
     int cells[4];
     cells[0] = voxel_index(e0x, e0y, e0z);

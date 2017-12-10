@@ -59,9 +59,10 @@ void Sampler::sample(Chunk &chunk, const Brush &brush, Operation operation) {
     compute::kernel &updater =
             m_sdf_samplers.at(static_cast<size_t>(brush.id())).updater;
 
-    const size_t N = VM_CHUNK_SIZE;
     enqueue_auto_distributed_nd_range_kernel<3>(
-            m_compute_ctx->queue, sampler, compute::dim(N + 3, N + 3, N + 3));
+            m_compute_ctx->queue,
+            sampler,
+            compute::dim(SAMPLE_GRID_DIM, SAMPLE_GRID_DIM, SAMPLE_GRID_DIM));
 
     updater.set_arg(2, chunk_origin);
     updater.set_arg(3, brush_origin);
@@ -75,7 +76,8 @@ void Sampler::sample(Chunk &chunk, const Brush &brush, Operation operation) {
         enqueue_auto_distributed_nd_range_kernel<3>(
                 m_compute_ctx->queue,
                 updater,
-                compute::dim(N + 3, N + 3, N + 3));
+                compute::dim(
+                        SAMPLE_GRID_DIM, SAMPLE_GRID_DIM, SAMPLE_GRID_DIM));
     }
     m_compute_ctx->queue.flush();
     m_compute_ctx->queue.finish();

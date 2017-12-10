@@ -5,6 +5,8 @@
 #include "compute/context.h"
 
 #include "dc/sampler.h"
+#define private public
+#include "dc/mesher.h"
 
 #include "scene/brush-ball.h"
 #include "scene/brush-cube.h"
@@ -23,9 +25,7 @@ struct TestContext {
     TestContext()
             : compute_ctx(vm::make_compute_context())
             , chunk({ 0, 0, 0 }, compute_ctx->context, 0)
-            , cpu_samples((VM_CHUNK_SIZE + 3) * (VM_CHUNK_SIZE + 3)
-                                  * (VM_CHUNK_SIZE + 3),
-                          2)
+            , cpu_samples(SAMPLE_3D_GRID_SIZE, 2)
             , gpu_samples(cpu_samples.size(), 0) {
         const compute::short4_ fill_color(2, 2, 2, 2);
         compute_ctx->queue.enqueue_fill_image<3>(chunk.samples,
@@ -39,9 +39,8 @@ struct TestContext {
 
 glm::vec3
 vertex_at(int x, int y, int z, const glm::vec3 &origin = { 0, 0, 0 }) {
-    auto half_dim = 0.5f * glm::vec3(VM_CHUNK_SIZE + 3,
-                                     VM_CHUNK_SIZE + 3,
-                                     VM_CHUNK_SIZE + 3);
+    auto half_dim =
+            0.5f * glm::vec3(SAMPLE_GRID_DIM, SAMPLE_GRID_DIM, SAMPLE_GRID_DIM);
     return float(VM_VOXEL_SIZE) * (glm::vec3(x, y, z) - half_dim) + origin;
 }
 
@@ -70,11 +69,11 @@ TEST(sampler, signs_match) {
     ctx.compute_ctx->queue.flush();
     ctx.compute_ctx->queue.finish();
 
-    for (size_t i = 0; i < VM_CHUNK_SIZE + 3; ++i) {
-        for (size_t j = 0; j < VM_CHUNK_SIZE + 3; ++j) {
-            for (size_t k = 0; k < VM_CHUNK_SIZE + 3; ++k) {
+    for (size_t i = 0; i < SAMPLE_GRID_DIM; ++i) {
+        for (size_t j = 0; j < SAMPLE_GRID_DIM; ++j) {
+            for (size_t k = 0; k < SAMPLE_GRID_DIM; ++k) {
                 const size_t index =
-                        k + (VM_CHUNK_SIZE + 3) * (j + (VM_CHUNK_SIZE + 3) * i);
+                        k + SAMPLE_GRID_DIM * (j + SAMPLE_GRID_DIM * i);
                 const glm::vec3 p = vertex_at(k, j, i) - cube.get_origin();
                 ctx.cpu_samples[index] = sign(
                         glm::min(ctx.cpu_samples[index],
@@ -85,19 +84,46 @@ TEST(sampler, signs_match) {
     ctx.compute_ctx->queue
             .enqueue_read_image<3>(ctx.chunk.samples,
                                    compute::dim(0, 0, 0),
-                                   compute::dim(VM_CHUNK_SIZE + 3,
-                                                VM_CHUNK_SIZE + 3,
-                                                VM_CHUNK_SIZE + 3),
+                                   compute::dim(SAMPLE_GRID_DIM,
+                                                SAMPLE_GRID_DIM,
+                                                SAMPLE_GRID_DIM),
                                    ctx.gpu_samples.data())
             .wait();
 
-    for (size_t i = 0; i < VM_CHUNK_SIZE + 3; ++i) {
-        for (size_t j = 0; j < VM_CHUNK_SIZE + 3; ++j) {
-            for (size_t k = 0; k < VM_CHUNK_SIZE + 3; ++k) {
+    for (size_t i = 0; i < SAMPLE_GRID_DIM; ++i) {
+        for (size_t j = 0; j < SAMPLE_GRID_DIM; ++j) {
+            for (size_t k = 0; k < SAMPLE_GRID_DIM; ++k) {
                 const size_t index =
-                        k + (VM_CHUNK_SIZE + 3) * (j + (VM_CHUNK_SIZE + 3) * i);
+                        k + (SAMPLE_GRID_DIM) * (j + (SAMPLE_GRID_DIM) *i);
                 ASSERT_EQ(ctx.cpu_samples[index], ctx.gpu_samples[index]);
             }
         }
     }
+}
+
+TEST(edge_selector, no_overruns) {
+    TestContext ctx{};
+    const vm::BrushCube cube{};
+    vm::dc::Sampler sampler(ctx.compute_ctx);
+    sampler.sample(ctx.chunk, cube, vm::dc::Sampler::Operation::Add);
+    ctx.compute_ctx->queue.flush();
+    ctx.compute_ctx->queue.finish();
+
+    vm::dc::Mesher mesher(ctx.compute_ctx);
+    mesher.enqueue_select_edges(ctx.chunk);
+    ctx.compute_ctx->queue.finish();
+}
+
+TEST(qef_solver, no_overruns) {
+    TestContext ctx{};
+    const vm::BrushCube cube{};
+    vm::dc::Sampler sampler(ctx.compute_ctx);
+    sampler.sample(ctx.chunk, cube, vm::dc::Sampler::Operation::Add);
+    ctx.compute_ctx->queue.flush();
+    ctx.compute_ctx->queue.finish();
+
+    vm::dc::Mesher mesher(ctx.compute_ctx);
+    mesher.enqueue_select_edges(ctx.chunk);
+    mesher.enqueue_solve_qef(ctx.chunk);
+    ctx.compute_ctx->queue.finish();
 }

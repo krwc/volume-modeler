@@ -31,43 +31,28 @@ short as_sign(float value) {
         b = tmp;         \
     } while (0)
 
-/* Dimension of a voxel grid without additional layer used to "fix" cracks */
-#define DIM_VOXEL_GRID (VM_CHUNK_SIZE)
-/* Dimension of a voxel grid with additional layer used to "fix" cracks */
-#define DIM_EXTENDED_VOXEL_GRID (DIM_VOXEL_GRID + 2)
-/* Dimension of a samples array (including samples for voxels in additional layer) */
-#define DIM_SAMPLES (DIM_VOXEL_GRID + 3)
-
 /**
  * @returns true if (x,y,z) is a voxel which would be enclosed inside a
- * non-extended grid, false otherwise.
- *
- * NOTE: This does not take into account the fact, that "physically"
- * non-extended voxel grid is originated at (1,1,1).
+ * voxel grid, false otherwise.
  */
 #define IS_VOXEL_COORD(x, y, z) \
-    ((x) < DIM_VOXEL_GRID && (y) < DIM_VOXEL_GRID && (z) < DIM_VOXEL_GRID)
-
-/* @returns true if (x,y,z) is a voxel in extended voxel grid */
-#define IS_EXTENDED_VOXEL_COORD(x, y, z)                            \
-    ((x) < DIM_EXTENDED_VOXEL_GRID && (y) < DIM_EXTENDED_VOXEL_GRID \
-     && (z) < DIM_EXTENDED_VOXEL_GRID)
+    ((x) < VOXEL_GRID_DIM && (y) < VOXEL_GRID_DIM && (z) < VOXEL_GRID_DIM)
 
 /* @returns true if (x,y,z) is a valid sampling point, false otherwise. */
 #define IS_SAMPLE_COORD(x, y, z) \
-    ((x) < DIM_SAMPLES && (y) < DIM_SAMPLES && (z) < DIM_SAMPLES)
+    ((x) < SAMPLE_GRID_DIM && (y) < SAMPLE_GRID_DIM && (z) < SAMPLE_GRID_DIM)
 
 /* @returns true if (x,y,z) is a valid x-edge index, false otherwise. */
 #define IS_X_EDGE_COORD(x, y, z) \
-    ((x) < DIM_SAMPLES - 1 && (y) < DIM_SAMPLES && (z) < DIM_SAMPLES)
+    ((x) < SAMPLE_GRID_DIM - 1 && (y) < SAMPLE_GRID_DIM && (z) < SAMPLE_GRID_DIM)
 
 /* @returns true if (x,y,z) is a valid y-edge index, false otherwise. */
 #define IS_Y_EDGE_COORD(x, y, z) \
-    ((x) < DIM_SAMPLES && (y) < DIM_SAMPLES - 1 && (z) < DIM_SAMPLES)
+    ((x) < SAMPLE_GRID_DIM && (y) < SAMPLE_GRID_DIM - 1 && (z) < SAMPLE_GRID_DIM)
 
 /* @returns true if (x,y,z) is a valid z-edge index, false otherwise. */
 #define IS_Z_EDGE_COORD(x, y, z) \
-    ((x) < DIM_SAMPLES && (y) < DIM_SAMPLES && (z) < DIM_SAMPLES - 1)
+    ((x) < SAMPLE_GRID_DIM && (y) < SAMPLE_GRID_DIM && (z) < SAMPLE_GRID_DIM - 1)
 
 /* @returns true if (x,y,z) is a valid edge index, false otherwise. */
 #define IS_EDGE_COORD(x, y, z, axis)              \
@@ -82,8 +67,7 @@ float3 vertex_at(int x, int y, int z, float3 chunk_origin) {
      * chunk_origin + VOXEL_SIZE * xyz
      */
     const float3 half_dim =
-            0.5f
-            * (float3)(VM_CHUNK_SIZE + 3, VM_CHUNK_SIZE + 3, VM_CHUNK_SIZE + 3);
+            0.5f * (float3)(SAMPLE_GRID_DIM, SAMPLE_GRID_DIM, SAMPLE_GRID_DIM);
     return (float) (VM_VOXEL_SIZE) * ((float3)(x, y, z) - half_dim)
            + chunk_origin;
 }

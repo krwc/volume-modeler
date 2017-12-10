@@ -102,8 +102,8 @@ vm::Brush *get_current_brush() {
 }
 
 static void handle_keyboard() {
-    static const vec3 AXIS_X(1,0,0);
-    static const vec3 AXIS_Z(0,0,-1);
+    static const vec3 axis_X(1,0,0);
+    static const vec3 axis_Z(0,0,-1);
 
     float accel = 0.025f * g_acceleration;
 
@@ -114,16 +114,16 @@ static void handle_keyboard() {
     vec3 translation;
     mat3 inv_rotation = inverse(g_camera->get_rotation());
     if (glfwGetKey(g_window, GLFW_KEY_W) == GLFW_PRESS) {
-        translation += AXIS_Z;
+        translation += axis_Z;
     }
     if (glfwGetKey(g_window, GLFW_KEY_S) == GLFW_PRESS) {
-        translation -= AXIS_Z;
+        translation -= axis_Z;
     }
     if (glfwGetKey(g_window, GLFW_KEY_A) == GLFW_PRESS) {
-        translation -= AXIS_X;
+        translation -= axis_X;
     }
     if (glfwGetKey(g_window, GLFW_KEY_D) == GLFW_PRESS) {
-        translation += AXIS_X;
+        translation += axis_X;
     }
     if (glfwGetKey(g_window, GLFW_KEY_ESCAPE) == GLFW_PRESS) {
         g_mouse_grabbed = false;

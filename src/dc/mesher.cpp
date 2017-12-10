@@ -14,15 +14,13 @@ using namespace std;
 namespace vm {
 namespace dc {
 
-static const size_t N = VM_CHUNK_SIZE;
-
 void Mesher::init_buffers() {
     // Actually this is a bit too much than it needs to be, because the
-    // regular grid of (N+2) voxels has 3 * (N+2)*(N+3)*(N+3) edges.
+    // regular grid of N voxels has 3 * N*(N+1)*(N+1) edges.
     //
     // Allocating a bigger buffer makes compute kernels easier to write
     // though.
-    const size_t num_edges = 3 * ((N + 3) * (N + 3) * (N + 3));
+    const size_t num_edges = 3 * SAMPLE_3D_GRID_SIZE;
     m_edges_scan = move(Scan(m_compute_ctx->queue, num_edges));
     m_edge_mask = compute::vector<uint32_t>(num_edges, m_compute_ctx->context);
     m_scanned_edges =
@@ -34,15 +32,16 @@ void Mesher::init_buffers() {
     compute::fill(
             m_edge_mask.begin(), m_edge_mask.end(), 0, m_compute_ctx->queue);
 
-    const size_t num_voxels = (N + 2) * (N + 2) * (N + 2);
-    m_voxels_scan = move(Scan(m_compute_ctx->queue, num_voxels));
-    m_voxel_mask =
-            compute::vector<uint32_t>(num_voxels, m_compute_ctx->context);
-    m_scanned_voxels =
-            compute::vector<uint32_t>(num_voxels, m_compute_ctx->context);
+    m_voxels_scan = move(Scan(m_compute_ctx->queue, VOXEL_3D_GRID_SIZE));
+    m_voxel_mask = compute::vector<uint32_t>(VOXEL_3D_GRID_SIZE,
+                                             m_compute_ctx->context);
+    m_scanned_voxels = compute::vector<uint32_t>(VOXEL_3D_GRID_SIZE,
+                                                 m_compute_ctx->context);
 
+    static const float num_vertex_components = 3;
     m_voxel_vertices =
-            compute::vector<float>(3 * num_voxels, m_compute_ctx->context);
+            compute::vector<float>(num_vertex_components * VOXEL_3D_GRID_SIZE,
+                                   m_compute_ctx->context);
 }
 
 void Mesher::init_kernels() {
@@ -85,7 +84,7 @@ void Mesher::enqueue_select_edges(Chunk &chunk) {
     auto event = enqueue_auto_distributed_nd_range_kernel<3>(
             m_unordered_queue,
             m_select_active_edges,
-            compute::dim(N + 3, N + 3, N + 3));
+            compute::dim(VOXEL_GRID_DIM, VOXEL_GRID_DIM, VOXEL_GRID_DIM));
 
     // Count them
     m_edges_scan.inclusive_scan(
@@ -102,7 +101,9 @@ void Mesher::enqueue_solve_qef(Chunk &chunk) {
     m_solve_qef.set_arg(6, m_voxel_mask);
 
     auto event = enqueue_auto_distributed_nd_range_kernel<3>(
-            m_unordered_queue, m_solve_qef, compute::dim(N + 2, N + 2, N + 2));
+            m_unordered_queue,
+            m_solve_qef,
+            compute::dim(VOXEL_GRID_DIM, VOXEL_GRID_DIM, VOXEL_GRID_DIM));
 
     // Count active voxels
     m_voxels_scan.inclusive_scan(
@@ -167,8 +168,8 @@ void Mesher::enqueue_contour(Chunk &chunk) {
     m_copy_vertices.set_arg(3, m_scanned_voxels);
     enqueue_auto_distributed_nd_range_kernel<1>(m_compute_ctx->queue,
                                                 m_copy_vertices,
-                                                compute::dim((N + 2) * (N + 2)
-                                                             * (N + 2)));
+                                                compute::dim(
+                                                        VOXEL_3D_GRID_SIZE));
 
     clEnqueueReleaseGLObjects(m_compute_ctx->queue.get(),
                               1,
@@ -195,7 +196,7 @@ void Mesher::enqueue_contour(Chunk &chunk) {
     enqueue_auto_distributed_nd_range_kernel<1>(
             m_compute_ctx->queue,
             m_make_indices,
-            compute::dim(3 * (N + 3) * (N + 3) * (N + 3)));
+            compute::dim(3 * SAMPLE_3D_GRID_SIZE));
 
     clEnqueueReleaseGLObjects(m_compute_ctx->queue.get(),
                               1,
@@ -213,16 +214,6 @@ void Mesher::contour(Chunk &chunk) {
     enqueue_select_edges(chunk);
     enqueue_solve_qef(chunk);
     m_unordered_queue.finish();
-#if 0
-    static size_t counter = 0;
-    if (counter == 10000) {
-        uint32_t active_edges = m_scanned_edges.back();
-        uint32_t active_voxels = m_scanned_voxels.back();
-        fprintf(stderr, "Active edges: %d; active voxels %d\n", active_edges, active_voxels);
-        counter = 0;
-    }
-    ++counter;
-#endif
     enqueue_contour(chunk);
 }
 

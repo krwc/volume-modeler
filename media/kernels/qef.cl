@@ -92,7 +92,7 @@ kernel void solve_qef(read_only image3d_t samples,
     const int x = get_global_id(0);
     const int y = get_global_id(1);
     const int z = get_global_id(2);
-    if (!IS_EXTENDED_VOXEL_COORD(x, y, z)) {
+    if (!IS_VOXEL_COORD(x, y, z)) {
         return;
     }
     /* Each sample in a voxel will be accessed more than once, so it makes
@@ -129,7 +129,7 @@ kernel void solve_qef(read_only image3d_t samples,
     }
 
     const uint index =
-            x + DIM_EXTENDED_VOXEL_GRID * (y + DIM_EXTENDED_VOXEL_GRID * z);
+            x + VOXEL_GRID_DIM * (y + VOXEL_GRID_DIM * z);
 
     if (active_edges > 0) {
         const float3 voxel_min = vertex_at(x + 0, y + 0, z + 0, chunk_origin);

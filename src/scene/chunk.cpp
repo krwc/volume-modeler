@@ -6,13 +6,27 @@
 using namespace glm;
 namespace vm {
 
-static const size_t N = VM_CHUNK_SIZE;
-
 Chunk::Chunk(const ivec3 &coord, const compute::context &context, int lod)
-        : samples(context, N + 3, N + 3, N + 3, Scene::samples_format())
-        , edges_x(context, N + 2, N + 3, N + 3, Scene::edges_format())
-        , edges_y(context, N + 3, N + 2, N + 3, Scene::edges_format())
-        , edges_z(context, N + 3, N + 3, N + 2, Scene::edges_format())
+        : samples(context,
+                  SAMPLE_GRID_DIM,
+                  SAMPLE_GRID_DIM,
+                  SAMPLE_GRID_DIM,
+                  Scene::samples_format())
+        , edges_x(context,
+                  EDGE_X_GRID_DIM(AXIS_X),
+                  EDGE_X_GRID_DIM(AXIS_Y),
+                  EDGE_X_GRID_DIM(AXIS_Z),
+                  Scene::edges_format())
+        , edges_y(context,
+                  EDGE_Y_GRID_DIM(AXIS_X),
+                  EDGE_Y_GRID_DIM(AXIS_Y),
+                  EDGE_Y_GRID_DIM(AXIS_Z),
+                  Scene::edges_format())
+        , edges_z(context,
+                  EDGE_Z_GRID_DIM(AXIS_X),
+                  EDGE_Z_GRID_DIM(AXIS_Y),
+                  EDGE_Z_GRID_DIM(AXIS_Z),
+                  Scene::edges_format())
 #warning "TODO: this vbo and cl_vbo are rather ugly"
         , vbo()
         , num_vertices(0)

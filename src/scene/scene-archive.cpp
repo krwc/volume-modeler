@@ -1,4 +1,4 @@
-#include "config.h"
+#include <config.h>
 
 #include "scene-archive.h"
 #include "scene.h"
@@ -49,10 +49,10 @@ static void validate_header(fstream &file) {
                            % ARCHIVE_VERSION
                            % header.version));
     }
-    if (header.chunk_size != VM_CHUNK_SIZE) {
+    if (header.chunk_size != VOXEL_GRID_DIM) {
         throw runtime_error(
                 boost::str(boost::format("Expected chunk size %1%, got: %2%")
-                           % VM_CHUNK_SIZE
+                           % VOXEL_GRID_DIM
                            % header.chunk_size));
     }
     if (header.voxel_size != VM_VOXEL_SIZE) {
@@ -78,7 +78,7 @@ static void validate_header(fstream &file) {
 static void write_header(ofstream &file) {
     // clang-format off
     file <= static_cast<uint16_t>(ARCHIVE_VERSION)
-         <= static_cast<uint16_t>(VM_CHUNK_SIZE)
+         <= static_cast<uint16_t>(VOXEL_GRID_DIM)
          <= static_cast<double>(VM_VOXEL_SIZE)
          <= static_cast<uint16_t>(image_format_size(Scene::edges_format()))
          <= static_cast<uint16_t>(image_format_size(Scene::samples_format()));
@@ -151,16 +151,14 @@ void SceneArchive::persist_later(shared_ptr<Chunk> chunk) {
         &jobs_mutex = m_jobs_mutex,
         &queue_mutex = m_queue_mutex
     ]() {
-        const size_t N = VM_CHUNK_SIZE;
-
         vector<uint8_t> samples(image_format_size(Scene::samples_format())
-                                * (N + 3) * (N + 3) * (N + 3));
+                                * SAMPLE_3D_GRID_SIZE);
         vector<uint8_t> edges_x(image_format_size(Scene::edges_format())
-                                * (N + 2) * (N + 3) * (N + 3));
+                                * EDGE_X_3D_GRID_SIZE);
         vector<uint8_t> edges_y(image_format_size(Scene::edges_format())
-                                * (N + 3) * (N + 2) * (N + 3));
+                                * EDGE_Y_3D_GRID_SIZE);
         vector<uint8_t> edges_z(image_format_size(Scene::edges_format())
-                                * (N + 3) * (N + 3) * (N + 2));
+                                * EDGE_Z_3D_GRID_SIZE);
         {
             lock_guard<mutex> queue_lock(queue_mutex);
             lock_guard<mutex> chunk_lock(chunk->mutex);
@@ -214,15 +212,14 @@ void SceneArchive::restore(shared_ptr<Chunk> chunk) {
     in.push(zlib_decompressor());
     in.push(file);
 
-    const size_t N = VM_CHUNK_SIZE;
-    vector<uint8_t> samples(image_format_size(Scene::samples_format()) * (N + 3)
-                            * (N + 3) * (N + 3));
-    vector<uint8_t> edges_x(image_format_size(Scene::edges_format()) * (N + 2)
-                            * (N + 3) * (N + 3));
-    vector<uint8_t> edges_y(image_format_size(Scene::edges_format()) * (N + 3)
-                            * (N + 2) * (N + 3));
-    vector<uint8_t> edges_z(image_format_size(Scene::edges_format()) * (N + 3)
-                            * (N + 3) * (N + 2));
+    vector<uint8_t> samples(image_format_size(Scene::samples_format())
+                            * SAMPLE_3D_GRID_SIZE);
+    vector<uint8_t> edges_x(image_format_size(Scene::edges_format())
+                            * EDGE_X_3D_GRID_SIZE);
+    vector<uint8_t> edges_y(image_format_size(Scene::edges_format())
+                            * EDGE_Y_3D_GRID_SIZE);
+    vector<uint8_t> edges_z(image_format_size(Scene::edges_format())
+                            * EDGE_Z_3D_GRID_SIZE);
 
     boost::iostreams::read(
             in, reinterpret_cast<char *>(&samples[0]), samples.size());
