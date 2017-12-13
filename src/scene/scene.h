@@ -35,8 +35,6 @@ class Scene {
     /* Dual Contouring related classes */
     dc::Sampler m_sampler;
     dc::Mesher m_mesher;
-    /* Used to avoid sampling same point multiple times */
-    glm::vec3 m_last_sampling_point;
 
     void init_persisted_chunks();
 

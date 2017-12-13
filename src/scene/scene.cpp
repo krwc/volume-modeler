@@ -75,8 +75,7 @@ Scene::Scene(const shared_ptr<ComputeContext> &compute_ctx,
         , m_chunks()
         , m_archive(scene_directory, compute_ctx)
         , m_sampler(compute_ctx)
-        , m_mesher(compute_ctx)
-        , m_last_sampling_point(NAN, NAN, NAN) {
+        , m_mesher(compute_ctx) {
     init_persisted_chunks();
 }
 
@@ -94,12 +93,6 @@ void Scene::init_chunk(const shared_ptr<Chunk> &chunk) {
 }
 
 void Scene::sample(const Brush &brush, dc::Sampler::Operation operation) {
-    if (m_last_sampling_point == brush.get_origin()) {
-        return;
-    } else {
-        m_last_sampling_point = brush.get_origin();
-    }
-
     ivec3 region_min;
     ivec3 region_max;
     get_covered_region(brush.get_aabb(), region_min, region_max);
