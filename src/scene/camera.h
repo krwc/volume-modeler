@@ -25,7 +25,7 @@ class Camera {
 
 public:
     Camera(const glm::vec3 &origin = { 0, 0, 0 },
-           float fov = 70.0f,
+           float fov = glm::radians(70.0f),
            float aspect_ratio = 4.0 / 3.0,
            float near_plane = 0.1f,
            float far_plane = 1000.0f);
