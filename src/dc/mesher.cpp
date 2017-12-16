@@ -158,10 +158,10 @@ void Mesher::enqueue_contour(Chunk &chunk) {
     realloc_vbo_if_necessary(chunk, num_voxels);
     realloc_ibo_if_necessary(chunk, num_edges);
 
+#if defined(WITH_CONTEXT_SHARING)
     // Ensure we don't have any race with acquire commands.
     glFinish();
 
-#if defined(WITH_CONTEXT_SHARING)
     const cl_mem buffers[] = {
         chunk.cl_vbo.get(),
         chunk.cl_ibo.get()
