@@ -1,6 +1,9 @@
 /** Distance between two nearest on-axis samples. */
 #cmakedefine VM_VOXEL_SIZE @VM_VOXEL_SIZE@
 #cmakedefine VM_CHUNK_SIZE @VM_CHUNK_SIZE@
+/** World dimensionality. */
+#cmakedefine WORLD_SIZE_METERS @WORLD_SIZE_METERS@
+#cmakedefine WORLD_VOXEL_SIZE_METERS @WORLD_VOXEL_SIZE_METERS@
 /** Number of voxels in a single dimension. */
 #define VOXEL_GRID_DIM @VM_CHUNK_SIZE@
 /** Total number of voxels within a chunk. */

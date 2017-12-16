@@ -18,6 +18,8 @@ find_package(Threads REQUIRED)
 
 set(VM_CHUNK_SIZE 64 CACHE STRING "Size of the scene chunk (64 recommended)")
 set(VM_VOXEL_SIZE 0.02 CACHE STRING "Size of the single voxel in chunk (0.02 recommended)")
+set(WORLD_SIZE_METERS 2048 CACHE STRING "World size in each dimension (x,y,z) in meters (2048 recommended)")
+set(WORLD_VOXEL_SIZE_METERS 0.1 CACHE STRING "Voxel size in meters (0.1 recommended)")
 
 option(WITH_TEST "Enables/disables test suite compilation" ON)
 option(WITH_SHARP_FEATURES "Enables/disables QEF solver" OFF)
