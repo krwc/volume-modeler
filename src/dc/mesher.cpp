@@ -193,7 +193,7 @@ void Mesher::enqueue_contour(Chunk &chunk) {
     opengl_enqueue_release_gl_objects(2, buffers, m_compute_ctx->queue);
 #else
     m_compute_ctx->queue.finish();
-    // TODO: Perhaps this belong to vm::Buffer implementation?
+    // TODO: Perhaps this belongs to vm::Buffer implementation?
     struct MappedBuffer {
         GLuint id;
         void *raw_ptr;
