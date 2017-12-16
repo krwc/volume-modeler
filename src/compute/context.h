@@ -35,8 +35,8 @@ public:
 
     ComputeContext(MakeSharedEnabler, bool gl_shared);
 
-    /** Creates an out of order queue using initialized context and device */
-    compute::command_queue make_out_of_order_queue() const;
+    /** Creates a queue using initialized context and device */
+    compute::command_queue make_queue() const;
 };
 
 #if defined(WITH_CONTEXT_SHARING)

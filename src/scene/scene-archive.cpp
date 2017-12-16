@@ -122,7 +122,7 @@ SceneArchive::SceneArchive(const string &directory,
         , m_jobs_mutex()
         , m_jobs()
         , m_thread_pool(2)
-        , m_copy_queue(compute_ctx->make_out_of_order_queue())
+        , m_copy_queue(compute_ctx->make_queue())
         , m_queue_mutex() {
     if (!fs::exists(m_workdir)) {
         fs::create_directory(m_workdir);

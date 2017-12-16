@@ -32,7 +32,7 @@ private:
     compute::kernel m_make_indices;
 
     /* A queue where active-edges and qef will be computed */
-    compute::command_queue m_unordered_queue;
+    compute::command_queue m_mesher_queue;
 
     void init_buffers();
     void init_kernels();

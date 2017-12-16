@@ -71,7 +71,7 @@ Mesher::Mesher(const shared_ptr<ComputeContext> &compute_ctx)
         : m_compute_ctx(compute_ctx)
         , m_edges_scan(compute_ctx->context)
         , m_voxels_scan(compute_ctx->context)
-        , m_unordered_queue(compute_ctx->make_out_of_order_queue()) {
+        , m_mesher_queue(compute_ctx->make_queue()) {
     init_buffers();
     init_kernels();
 }
@@ -82,13 +82,13 @@ void Mesher::enqueue_select_edges(Chunk &chunk) {
     m_select_active_edges.set_arg(1, chunk.samples);
 
     auto event = enqueue_auto_distributed_nd_range_kernel<3>(
-            m_unordered_queue,
+            m_mesher_queue,
             m_select_active_edges,
             compute::dim(VOXEL_GRID_DIM, VOXEL_GRID_DIM, VOXEL_GRID_DIM));
 
     // Count them
     m_edges_scan.inclusive_scan(
-            m_edge_mask, m_scanned_edges, m_unordered_queue, event);
+            m_edge_mask, m_scanned_edges, m_mesher_queue, event);
 }
 
 void Mesher::enqueue_solve_qef(Chunk &chunk) {
@@ -101,13 +101,13 @@ void Mesher::enqueue_solve_qef(Chunk &chunk) {
     m_solve_qef.set_arg(6, m_voxel_mask);
 
     auto event = enqueue_auto_distributed_nd_range_kernel<3>(
-            m_unordered_queue,
+            m_mesher_queue,
             m_solve_qef,
             compute::dim(VOXEL_GRID_DIM, VOXEL_GRID_DIM, VOXEL_GRID_DIM));
 
     // Count active voxels
     m_voxels_scan.inclusive_scan(
-            m_voxel_mask, m_scanned_voxels, m_unordered_queue, event);
+            m_voxel_mask, m_scanned_voxels, m_mesher_queue, event);
 }
 
 void Mesher::realloc_vbo_if_necessary(Chunk &chunk, size_t num_voxels) {
@@ -229,7 +229,7 @@ void Mesher::enqueue_contour(Chunk &chunk) {
 void Mesher::contour(Chunk &chunk) {
     enqueue_select_edges(chunk);
     enqueue_solve_qef(chunk);
-    m_unordered_queue.finish();
+    m_mesher_queue.finish();
     enqueue_contour(chunk);
 }
 
