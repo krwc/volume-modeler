@@ -108,27 +108,29 @@ Scan::Scan(compute::context &context)
         , m_phases()
         , m_local_scan()
         , m_fixup_scan() {
-      while (true) {
-        LOG(trace) << "Trying block size: " << m_block_size;
+    auto load_and_compile_program = [&](size_t block_size) {
         auto program =
                 compute::program::create_with_source(scan_source, context);
 
-        program.build("-DBLK_SIZE=" + std::to_string(m_block_size));
-        m_local_scan = program.create_kernel("local_scan");
-        m_fixup_scan = program.create_kernel("fixup_scan");
-        const size_t max_block_size =
-                min(m_local_scan.get_work_group_info<size_t>(context.get_device(), CL_KERNEL_WORK_GROUP_SIZE),
-                    m_fixup_scan.get_work_group_info<size_t>(context.get_device(), CL_KERNEL_WORK_GROUP_SIZE));
+        program.build("-DBLK_SIZE=" + std::to_string(block_size));
+        return program;
+    };
 
-        if (max_block_size > m_block_size) {
-            // I guess it makes sense to step incrementally, because
-            // the work-group-size may depend on the kernel memory being used.
-            m_block_size *= 2;
-        } else {
-            m_block_size = max_block_size;
-            break;
-        }
-    }
+    auto program = load_and_compile_program(m_block_size);
+    m_local_scan = program.create_kernel("local_scan");
+    m_fixup_scan = program.create_kernel("fixup_scan");
+    const size_t max_block_size =
+            min(m_local_scan.get_work_group_info<size_t>(
+                        context.get_device(), CL_KERNEL_WORK_GROUP_SIZE),
+                m_fixup_scan.get_work_group_info<size_t>(
+                        context.get_device(), CL_KERNEL_WORK_GROUP_SIZE));
+    m_block_size = max_block_size;
+
+    // Compile again, only this time with correct workgroup size.
+    program = load_and_compile_program(m_block_size);
+    m_local_scan = program.create_kernel("local_scan");
+    m_fixup_scan = program.create_kernel("fixup_scan");
+
     LOG(debug) << "Determined block size: " << m_block_size;
 }
 
