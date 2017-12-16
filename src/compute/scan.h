@@ -5,16 +5,15 @@
 namespace vm {
 
 class Scan {
-    static const constexpr size_t BLOCK_SIZE = 1024;
-
     size_t m_last_input_size;
     size_t m_aligned_size;
+    size_t m_block_size;
     /**
      * Arrays keeping temporaries generated during scan on number of elements
-     * that exceed BLOCK_SIZE (which is 1024 actually).
+     * that exceed m_block_size.
      */
     std::vector<compute::vector<uint32_t>> m_phases;
-    compute::kernel m_local_inclusive_scan;
+    compute::kernel m_local_scan;
     compute::kernel m_fixup_scan;
 
     void ensure_buffers_ready(compute::command_queue &queue, size_t input_size);

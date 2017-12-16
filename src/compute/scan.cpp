@@ -84,13 +84,13 @@ void Scan::ensure_buffers_ready(compute::command_queue &queue,
     size_t num_phases = 0;
     {
         size_t size = input_size;
-        while (size > Scan::BLOCK_SIZE) {
+        while (size > m_block_size) {
             ++num_phases;
-            size /= Scan::BLOCK_SIZE;
+            size /= m_block_size;
 
             /* Each array must be aligned to be a multiple of a block */
             const size_t array_size =
-                    align_to_block_size(size, Scan::BLOCK_SIZE);
+                    align_to_block_size(size, m_block_size);
             m_phases.emplace_back(
                     compute::vector<uint32_t>(array_size, 0, queue));
             LOG(trace) << "Allocated buffer for " << array_size
@@ -98,24 +98,38 @@ void Scan::ensure_buffers_ready(compute::command_queue &queue,
         }
     }
     m_last_input_size = input_size;
-    m_aligned_size = align_to_block_size(input_size, Scan::BLOCK_SIZE);
+    m_aligned_size = align_to_block_size(input_size, m_block_size);
 }
 
 Scan::Scan(compute::context &context)
         : m_last_input_size(0)
         , m_aligned_size(0)
+        , m_block_size(1)
         , m_phases()
-        , m_local_inclusive_scan()
+        , m_local_scan()
         , m_fixup_scan() {
-    {
+      while (true) {
+        LOG(trace) << "Trying block size: " << m_block_size;
         auto program =
                 compute::program::create_with_source(scan_source, context);
-        std::ostringstream inclusive_opts;
-        inclusive_opts << " -DBLK_SIZE=" << Scan::BLOCK_SIZE;
-        program.build(inclusive_opts.str());
-        m_local_inclusive_scan = program.create_kernel("local_scan");
+
+        program.build("-DBLK_SIZE=" + std::to_string(m_block_size));
+        m_local_scan = program.create_kernel("local_scan");
         m_fixup_scan = program.create_kernel("fixup_scan");
+        const size_t max_block_size =
+                min(m_local_scan.get_work_group_info<size_t>(context.get_device(), CL_KERNEL_WORK_GROUP_SIZE),
+                    m_fixup_scan.get_work_group_info<size_t>(context.get_device(), CL_KERNEL_WORK_GROUP_SIZE));
+
+        if (max_block_size > m_block_size) {
+            // I guess it makes sense to step incrementally, because
+            // the work-group-size may depend on the kernel memory being used.
+            m_block_size *= 2;
+        } else {
+            m_block_size = max_block_size;
+            break;
+        }
     }
+    LOG(debug) << "Determined block size: " << m_block_size;
 }
 
 compute::event Scan::inclusive_scan(compute::vector<uint32_t> &input,
@@ -125,36 +139,36 @@ compute::event Scan::inclusive_scan(compute::vector<uint32_t> &input,
     assert(output.size() >= input.size());
     ensure_buffers_ready(queue, input.size());
 
-    m_local_inclusive_scan.set_arg(0, input);
-    m_local_inclusive_scan.set_arg(1, output);
+    m_local_scan.set_arg(0, input);
+    m_local_scan.set_arg(1, output);
     if (m_phases.size()) {
-        m_local_inclusive_scan.set_arg(2, m_phases[0]);
+        m_local_scan.set_arg(2, m_phases[0]);
     } else {
-        m_local_inclusive_scan.set_arg(2, NULL);
+        m_local_scan.set_arg(2, NULL);
     }
-    m_local_inclusive_scan.set_arg(3, static_cast<cl_uint>(input.size()));
+    m_local_scan.set_arg(3, static_cast<cl_uint>(input.size()));
     compute::event event;
-    event = queue.enqueue_1d_range_kernel(m_local_inclusive_scan,
+    event = queue.enqueue_1d_range_kernel(m_local_scan,
                                           0,
                                           m_aligned_size,
-                                          Scan::BLOCK_SIZE,
+                                          m_block_size,
                                           events);
 
     const size_t num_fixup_phases = m_phases.size();
     for (size_t j = 1; j <= num_fixup_phases; ++j) {
-        m_local_inclusive_scan.set_arg(0, m_phases[j - 1]);
-        m_local_inclusive_scan.set_arg(1, m_phases[j - 1]);
+        m_local_scan.set_arg(0, m_phases[j - 1]);
+        m_local_scan.set_arg(1, m_phases[j - 1]);
         if (j < num_fixup_phases) {
-            m_local_inclusive_scan.set_arg(2, m_phases[j]);
+            m_local_scan.set_arg(2, m_phases[j]);
         } else {
-            m_local_inclusive_scan.set_arg(2, NULL);
+            m_local_scan.set_arg(2, NULL);
         }
-        m_local_inclusive_scan.set_arg(
+        m_local_scan.set_arg(
                 3, static_cast<cl_uint>(m_phases[j - 1].size()));
-        event = queue.enqueue_1d_range_kernel(m_local_inclusive_scan,
+        event = queue.enqueue_1d_range_kernel(m_local_scan,
                                               0,
                                               m_phases[j - 1].size(),
-                                              Scan::BLOCK_SIZE,
+                                              m_block_size,
                                               event);
     }
 
@@ -167,7 +181,7 @@ compute::event Scan::inclusive_scan(compute::vector<uint32_t> &input,
             event = queue.enqueue_1d_range_kernel(m_fixup_scan,
                                                   0,
                                                   m_phases[j - 1].size(),
-                                                  Scan::BLOCK_SIZE,
+                                                  m_block_size,
                                                   event);
         }
         m_fixup_scan.set_arg(0, output);
@@ -175,8 +189,8 @@ compute::event Scan::inclusive_scan(compute::vector<uint32_t> &input,
         m_fixup_scan.set_arg(2, static_cast<cl_uint>(output.size()));
         event = queue.enqueue_1d_range_kernel(m_fixup_scan,
                                               0,
-                                              m_aligned_size - Scan::BLOCK_SIZE,
-                                              Scan::BLOCK_SIZE,
+                                              m_aligned_size - m_block_size,
+                                              m_block_size,
                                               event);
     }
     return event;
