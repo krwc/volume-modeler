@@ -78,7 +78,11 @@ static void init() {
     g_camera->set_origin({0,0,5});
     g_camera->set_aspect_ratio(float(g_window_width) / g_window_height);
 
+#if defined(WITH_CONTEXT_SHARING)
     g_compute_ctx = vm::make_gl_shared_compute_context();
+#else
+    g_compute_ctx = vm::make_compute_context();
+#endif // WITH_CONTEXT_SHARING
 
     g_renderer = make_unique<vm::Renderer>(g_compute_ctx, g_material_array);
     g_renderer->resize(g_window_width, g_window_height);
@@ -165,7 +169,7 @@ static void handle_scroll(GLFWwindow *window, double xoffset, double yoffset) {
         g_material_id = std::max(0, std::min(g_material_id, int(g_material_array.size())-1));
         get_current_brush()->set_material(g_material_id);
     }
-    const float min_scale = 3.5 * VM_VOXEL_SIZE;
+    const float min_scale = 2.0 * VM_VOXEL_SIZE;
     g_brush_scale = max(vec3(min_scale, min_scale, min_scale), g_brush_scale);
 }
 

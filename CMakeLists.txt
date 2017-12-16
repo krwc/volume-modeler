@@ -20,7 +20,8 @@ set(VM_CHUNK_SIZE 64 CACHE STRING "Size of the scene chunk (64 recommended)")
 set(VM_VOXEL_SIZE 0.02 CACHE STRING "Size of the single voxel in chunk (0.02 recommended)")
 
 option(WITH_TEST "Enables/disables test suite compilation" ON)
-option(WITH_FEATURES "Enables/disables QEF solver" OFF)
+option(WITH_SHARP_FEATURES "Enables/disables QEF solver" OFF)
+option(WITH_CONTEXT_SHARING "Enables/disables use of OpenGL<->OpenCL context sharing" ON)
 
 # Used by the logger module to remove path prefix.
 set(LOGGER_SOURCES_ROOT_DIR ${CMAKE_CURRENT_SOURCE_DIR})

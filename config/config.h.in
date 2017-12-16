@@ -30,6 +30,8 @@
     (EDGE_Z_GRID_DIM(AXIS_X) * EDGE_Z_GRID_DIM(AXIS_Y) * EDGE_Z_GRID_DIM(AXIS_Z))
 
 /** Enables / disables QEF solver */
-#cmakedefine WITH_FEATURES
+#cmakedefine WITH_SHARP_FEATURES
+/** Enables / disables use of OpenGL<->OpenCL context sharing */
+#cmakedefine WITH_CONTEXT_SHARING
 /** Logger specific variable controlling removed prefix */
 #cmakedefine LOGGER_SOURCES_ROOT_DIR "@LOGGER_SOURCES_ROOT_DIR@"

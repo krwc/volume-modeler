@@ -38,6 +38,8 @@ private:
     void init_kernels();
     void enqueue_select_edges(Chunk &chunk);
     void enqueue_solve_qef(Chunk &chunk);
+    void realloc_vbo_if_necessary(Chunk &chunk, size_t num_voxels);
+    void realloc_ibo_if_necessary(Chunk &chunk, size_t num_edges);
     void enqueue_contour(Chunk &chunk);
 
 public:

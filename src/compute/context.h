@@ -23,7 +23,9 @@ namespace vm {
 
 class ComputeContext {
     struct MakeSharedEnabler {};
+#if defined(WITH_CONTEXT_SHARING)
     friend std::shared_ptr<ComputeContext> make_gl_shared_compute_context();
+#endif // WITH_CONTEXT_SHARING
     friend std::shared_ptr<ComputeContext> make_compute_context();
 
 public:
@@ -37,10 +39,12 @@ public:
     compute::command_queue make_out_of_order_queue() const;
 };
 
+#if defined(WITH_CONTEXT_SHARING)
 inline std::shared_ptr<ComputeContext> make_gl_shared_compute_context() {
     return std::make_shared<ComputeContext>(ComputeContext::MakeSharedEnabler{},
                                             true);
 }
+#endif // WITH_CONTEXT_SHARING
 
 inline std::shared_ptr<ComputeContext> make_compute_context() {
     return std::make_shared<ComputeContext>(ComputeContext::MakeSharedEnabler{},

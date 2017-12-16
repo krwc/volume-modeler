@@ -110,40 +110,42 @@ void Mesher::enqueue_solve_qef(Chunk &chunk) {
             m_voxel_mask, m_scanned_voxels, m_unordered_queue, event);
 }
 
-namespace {
-size_t align(size_t value, size_t alignment = 4096) {
-    if (value % alignment) {
-        return value + (alignment - value % alignment);
-    }
-    return value;
-}
+void Mesher::realloc_vbo_if_necessary(Chunk &chunk, size_t num_voxels) {
+    static const size_t vertex_size = sizeof(glm::vec3);
 
-void realloc_vbo_if_necessary(std::shared_ptr<ComputeContext> &ctx,
-                              Chunk &chunk,
-                              uint32_t num_voxels) {
-    const size_t vertex_size = sizeof(glm::vec3);
     if (chunk.vbo.size() < vertex_size * num_voxels) {
         chunk.vbo = move(Buffer(BufferDesc{ GL_ARRAY_BUFFER,
                                             GL_DYNAMIC_DRAW,
                                             nullptr,
-                                            align(vertex_size * num_voxels) }));
-        chunk.cl_vbo = compute::opengl_buffer(ctx->context, chunk.vbo.id());
+                                            vertex_size * num_voxels }));
+#if defined(WITH_CONTEXT_SHARING)
+        chunk.cl_vbo =
+                compute::opengl_buffer(m_compute_ctx->context, chunk.vbo.id());
+#else
+        chunk.cl_vbo = compute::buffer(m_compute_ctx->context,
+                                       vertex_size * num_voxels);
+#endif // WITH_CONTEXT_SHARING
     }
 }
 
-void realloc_ibo_if_necessary(std::shared_ptr<ComputeContext> &ctx,
-                              Chunk &chunk,
-                              size_t num_edges) {
-    if (chunk.ibo.size() < 6 * sizeof(unsigned) * num_edges) {
+void Mesher::realloc_ibo_if_necessary(Chunk &chunk, size_t num_edges) {
+    const size_t num_indices = 6 * num_edges;
+
+    if (chunk.ibo.size() < sizeof(unsigned) * num_indices) {
         chunk.ibo = move(
                 Buffer(BufferDesc{ GL_ELEMENT_ARRAY_BUFFER,
                                    GL_DYNAMIC_DRAW,
                                    nullptr,
-                                   align(6 * sizeof(unsigned) * num_edges) }));
-        chunk.cl_ibo = compute::opengl_buffer(ctx->context, chunk.ibo.id());
+                                   sizeof(unsigned) * num_indices }));
+#if defined(WITH_CONTEXT_SHARING)
+        chunk.cl_ibo =
+                compute::opengl_buffer(m_compute_ctx->context, chunk.ibo.id());
+#else
+        chunk.cl_ibo = compute::buffer(m_compute_ctx->context,
+                                       sizeof(unsigned) * num_indices);
+#endif // WITH_CONTEXT_SHARING
     }
 }
-} // namespace
 
 void Mesher::enqueue_contour(Chunk &chunk) {
     uint32_t num_voxels = m_scanned_voxels.back();
@@ -153,17 +155,19 @@ void Mesher::enqueue_contour(Chunk &chunk) {
         // Nothing to do.
         return;
     }
-    realloc_vbo_if_necessary(m_compute_ctx, chunk, num_voxels);
-    realloc_ibo_if_necessary(m_compute_ctx, chunk, num_edges);
+    realloc_vbo_if_necessary(chunk, num_voxels);
+    realloc_ibo_if_necessary(chunk, num_edges);
 
     // Ensure we don't have any race with acquire commands.
     glFinish();
 
+#if defined(WITH_CONTEXT_SHARING)
     const cl_mem buffers[] = {
         chunk.cl_vbo.get(),
         chunk.cl_ibo.get()
     };
     opengl_enqueue_acquire_gl_objects(2, buffers, m_compute_ctx->queue);
+#endif // WITH_CONTEXT_SHARING
 
     m_copy_vertices.set_arg(0, chunk.cl_vbo);
     m_copy_vertices.set_arg(1, m_voxel_vertices);
@@ -185,10 +189,40 @@ void Mesher::enqueue_contour(Chunk &chunk) {
             m_make_indices,
             compute::dim(3 * SAMPLE_3D_GRID_SIZE)).wait();
 
+#if defined(WITH_CONTEXT_SHARING)
     opengl_enqueue_release_gl_objects(2, buffers, m_compute_ctx->queue);
-
-    m_compute_ctx->queue.flush();
+#else
     m_compute_ctx->queue.finish();
+    // TODO: Perhaps this belong to vm::Buffer implementation?
+    struct MappedBuffer {
+        GLuint id;
+        void *raw_ptr;
+
+        MappedBuffer(GLuint id, GLenum access)
+                : id(id), raw_ptr(glMapNamedBuffer(id, access)) {
+            if (!raw_ptr) {
+                throw runtime_error("could not map a buffer");
+            }
+        }
+
+        ~MappedBuffer() {
+            if (raw_ptr) {
+                glUnmapNamedBuffer(id);
+            }
+        }
+    };
+    MappedBuffer mapped_vbo(chunk.vbo.id(), GL_WRITE_ONLY);
+    MappedBuffer mapped_ibo(chunk.ibo.id(), GL_WRITE_ONLY);
+    m_compute_ctx->queue.enqueue_read_buffer(chunk.cl_vbo,
+                                             0,
+                                             chunk.cl_vbo.size(),
+                                             mapped_vbo.raw_ptr);
+    m_compute_ctx->queue.enqueue_read_buffer(chunk.cl_ibo,
+                                             0,
+                                             chunk.cl_ibo.size(),
+                                             mapped_ibo.raw_ptr);
+    m_compute_ctx->queue.finish();
+#endif // WITH_CONTEXT_SHARING
     chunk.num_vertices = num_voxels;
 }
 
