@@ -221,9 +221,9 @@ void Mesher::enqueue_contour(Chunk &chunk) {
                                              0,
                                              chunk.cl_ibo.size(),
                                              mapped_ibo.raw_ptr);
-    m_compute_ctx->queue.finish();
 #endif // WITH_CONTEXT_SHARING
     chunk.num_vertices = num_voxels;
+    m_compute_ctx->queue.finish();
 }
 
 void Mesher::contour(Chunk &chunk) {
