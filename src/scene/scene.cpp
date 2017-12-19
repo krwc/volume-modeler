@@ -125,8 +125,6 @@ void Scene::sample(const Brush &brush, dc::Sampler::Operation operation) {
             }
         }
     }
-    lock_guard<mutex> queue_lock(m_compute_ctx->queue_mutex);
-    m_compute_ctx->queue.finish();
 }
 
 void Scene::add(const Brush &brush) {
