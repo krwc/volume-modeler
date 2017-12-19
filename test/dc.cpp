@@ -65,9 +65,11 @@ TEST(sampler, signs_match) {
     TestContext ctx{};
     const vm::BrushCube cube{};
     vm::dc::Sampler sampler(ctx.compute_ctx);
-    sampler.sample(ctx.chunk, cube, vm::dc::Sampler::Operation::Add);
-    ctx.compute_ctx->queue.flush();
-    ctx.compute_ctx->queue.finish();
+    sampler.sample(ctx.chunk,
+                   cube,
+                   vm::dc::Sampler::Operation::Add,
+                   ctx.compute_ctx->queue)
+            .wait();
 
     for (size_t i = 0; i < SAMPLE_GRID_DIM; ++i) {
         for (size_t j = 0; j < SAMPLE_GRID_DIM; ++j) {
@@ -105,25 +107,26 @@ TEST(edge_selector, no_overruns) {
     TestContext ctx{};
     const vm::BrushCube cube{};
     vm::dc::Sampler sampler(ctx.compute_ctx);
-    sampler.sample(ctx.chunk, cube, vm::dc::Sampler::Operation::Add);
-    ctx.compute_ctx->queue.flush();
-    ctx.compute_ctx->queue.finish();
+    sampler.sample(ctx.chunk,
+                   cube,
+                   vm::dc::Sampler::Operation::Add,
+                   ctx.compute_ctx->queue).wait();
 
     vm::dc::Mesher mesher(ctx.compute_ctx);
-    mesher.enqueue_select_edges(ctx.chunk);
-    ctx.compute_ctx->queue.finish();
+    mesher.enqueue_select_edges(ctx.chunk, ctx.compute_ctx->queue).wait();
 }
 
 TEST(qef_solver, no_overruns) {
     TestContext ctx{};
     const vm::BrushCube cube{};
     vm::dc::Sampler sampler(ctx.compute_ctx);
-    sampler.sample(ctx.chunk, cube, vm::dc::Sampler::Operation::Add);
-    ctx.compute_ctx->queue.flush();
-    ctx.compute_ctx->queue.finish();
+    sampler.sample(ctx.chunk,
+                   cube,
+                   vm::dc::Sampler::Operation::Add,
+                   ctx.compute_ctx->queue)
+            .wait();
 
     vm::dc::Mesher mesher(ctx.compute_ctx);
-    mesher.enqueue_select_edges(ctx.chunk);
-    mesher.enqueue_solve_qef(ctx.chunk);
-    ctx.compute_ctx->queue.finish();
+    mesher.enqueue_select_edges(ctx.chunk, ctx.compute_ctx->queue).wait();
+    mesher.enqueue_solve_qef(ctx.chunk, ctx.compute_ctx->queue).wait();
 }
