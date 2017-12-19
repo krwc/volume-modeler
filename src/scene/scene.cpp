@@ -120,7 +120,7 @@ void Scene::sample(const Brush &brush, dc::Sampler::Operation operation) {
                 }
 
                 // Queue this modified chunk to be persisted on the next
-                // occassion
+                // opportunity
                 m_archive.persist_later(chunk);
             }
         }
