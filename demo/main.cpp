@@ -47,12 +47,14 @@ static vec3 g_brush_scale(1,1,1);
 
 static int g_material_id;
 static const vector<string> g_material_array {
+    /*
     "media/textures/brick.jpg",
     "media/textures/brick1.jpg",
     "media/textures/grass.jpg",
     "media/textures/rock.jpg",
     "media/textures/stones.jpg",
     "media/textures/wood.jpg"
+    */
 };
 
 static void handle_scroll(GLFWwindow *window, double xoffset, double yoffset);
