@@ -94,7 +94,7 @@ void Scan::ensure_buffers_ready(compute::command_queue &queue,
             m_phases.emplace_back(
                     compute::vector<uint32_t>(array_size, 0, queue));
             LOG(trace) << "Allocated buffer for " << array_size
-                       << " elements on phase " << num_phases << endl;
+                       << " elements on phase " << num_phases;
         }
     }
     m_last_input_size = input_size;
