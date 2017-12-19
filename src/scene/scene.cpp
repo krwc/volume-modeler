@@ -1,18 +1,16 @@
 #include <config.h>
 
+#include "brush.h"
+#include "camera.h"
 #include "scene.h"
 
-#include "compute/interop.h"
+#include <utils/log.h>
+#include <utils/persistence.h>
 
-#include "utils/log.h"
-#include "utils/persistence.h"
-
-#include <glm/gtc/type_ptr.hpp>
 #include <glm/gtx/norm.hpp>
+#include <math/aabb.h>
 
 #include <algorithm>
-
-#include <cstring>
 
 using namespace std;
 using namespace glm;
@@ -40,7 +38,7 @@ void Scene::init_persisted_chunks() {
     }
 }
 
-void Scene::get_covered_region(const AABB &aabb,
+void Scene::get_covered_region(const math::AABB &aabb,
                                ivec3 &out_min,
                                ivec3 &out_max) {
     // Not 0.5, due to lack of precision and artifacts caused by it.

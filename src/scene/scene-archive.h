@@ -1,15 +1,15 @@
 #ifndef VM_SCENE_SCENE_ARCHIVE_H
 #define VM_SCENE_SCENE_ARCHIVE_H
-#include <fstream>
 #include <map>
 #include <mutex>
 #include <set>
 #include <string>
 #include <tuple>
 
-#include "compute/context.h"
-#include "scene/chunk.h"
-#include "utils/thread-pool.h"
+#include "chunk.h"
+
+#include <compute/context.h>
+#include <utils/thread-pool.h>
 
 #include <glm/glm.hpp>
 

@@ -3,11 +3,12 @@
 #include "image.h"
 #include "renderer.h"
 
-#include "scene/scene.h"
+#include <scene/scene.h>
+#include <scene/camera.h>
 
-#include "compute/interop.h"
+#include <compute/interop.h>
 
-#include "utils/log.h"
+#include <utils/log.h>
 
 #include <glm/glm.hpp>
 #include <iostream>

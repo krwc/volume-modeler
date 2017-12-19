@@ -3,9 +3,9 @@
 #include <glm/glm.hpp>
 #include <mutex>
 
-#include "compute/context.h"
+#include <compute/context.h>
 
-#include "gfx/buffer.h"
+#include <gfx/buffer.h>
 
 namespace vm {
 

@@ -4,6 +4,7 @@
 #include <glm/glm.hpp>
 
 namespace vm {
+namespace math {
 
 struct AABB {
     glm::vec3 min;
@@ -35,6 +36,7 @@ struct AABB {
     AABB transform(const glm::mat3 &transformation) const;
 };
 
+} // namespace math
 } // namespace vm
 
 #endif /* VM_MATH_AABB_H */

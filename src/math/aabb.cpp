@@ -4,6 +4,7 @@
 #include <numeric>
 
 namespace vm {
+namespace math {
 using namespace glm;
 
 namespace {
@@ -44,4 +45,5 @@ AABB AABB::transform(const mat3 &transformation) const {
     return transformed_aabb;
 }
 
+} // namespace math
 } // namespace vm

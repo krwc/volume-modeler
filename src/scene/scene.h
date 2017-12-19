@@ -1,28 +1,24 @@
 #ifndef VM_SCENE_SCENE_H
 #define VM_SCENE_SCENE_H
-#include <array>
-#include <fstream>
-#include <iostream>
 #include <memory>
 #include <unordered_map>
 #include <vector>
 
-#include "scene/brush.h"
-#include "scene/camera.h"
-#include "scene/chunk.h"
-#include "scene/scene-archive.h"
+#include <dc/mesher.h>
+#include <dc/sampler.h>
 
-#include "compute/context.h"
-#include "gfx/texture.h"
-
-#include "utils/thread-pool.h"
-
-#include "dc/mesher.h"
-#include "dc/sampler.h"
-
-#include <boost/optional.hpp>
+#include "scene-archive.h"
 
 namespace vm {
+class Brush;
+class Camera;
+class ComputeContext;
+
+namespace math {
+struct AABB;
+} // namespace math
+
+struct Chunk;
 
 class Scene {
     friend class Renderer;
@@ -39,7 +35,7 @@ class Scene {
     void init_persisted_chunks();
 
     /** Gets the region (in chunk coordinates) covered by the specified aabb */
-    void get_covered_region(const AABB &region_aabb,
+    void get_covered_region(const math::AABB &region_aabb,
                             glm::ivec3 &region_min,
                             glm::ivec3 &region_max);
     /** Initializes the chunk's volumetric data */

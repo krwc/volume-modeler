@@ -7,14 +7,15 @@
 #include <fstream>
 #include <thread>
 
-#include "gfx/renderer.h"
-#include "compute/context.h"
+#include <gfx/renderer.h>
+#include <compute/context.h>
 
-#include "scene/scene.h"
-#include "scene/brush-cube.h"
-#include "scene/brush-ball.h"
+#include <scene/scene.h>
+#include <scene/camera.h>
+#include <scene/brush-cube.h>
+#include <scene/brush-ball.h>
 
-#include "utils/log.h"
+#include <utils/log.h>
 
 using namespace std;
 using namespace glm;
@@ -232,7 +233,7 @@ static void render_scene() {
     brush->set_rotation({0, 0, 0});
     brush->set_scale(g_brush_scale);
 
-    vm::AABB brush_aabb = brush->get_aabb();
+    vm::math::AABB brush_aabb = brush->get_aabb();
 
     if (g_brush_should_rotate) {
         brush->set_rotation({g_rotx, g_roty, 0});

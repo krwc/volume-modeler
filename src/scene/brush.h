@@ -4,9 +4,10 @@
 #include <glm/glm.hpp>
 #include <glm/gtc/quaternion.hpp>
 
-#include "math/aabb.h"
-
 namespace vm {
+namespace math {
+struct AABB;
+} // namespace math
 
 /**
  * @brief An abstract class representing a brush that can be used to draw on the
@@ -24,7 +25,7 @@ public:
      * @returns the bounding box of the brush. Must be implemented by the
      * deriving classes.
      */
-    virtual AABB get_aabb() const = 0;
+    virtual math::AABB get_aabb() const = 0;
 
     /** @returns the origin of the brush */
     inline const glm::vec3 &get_origin() const {
