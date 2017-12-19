@@ -27,12 +27,15 @@ private:
     /* Vertices solved by the QEF */
     compute::vector<float> m_voxel_vertices;
 
+    /* Temporary VBO and IBO before they're copied */
+    compute::buffer m_vbo;
+    size_t m_vbo_size;
+    compute::buffer m_ibo;
+    size_t m_ibo_size;
+
     /* Finally, some geometry generator */
     compute::kernel m_copy_vertices;
     compute::kernel m_make_indices;
-
-    /* A queue where active-edges and qef will be computed */
-    compute::command_queue m_mesher_queue;
 
     void init_buffers();
     void init_kernels();

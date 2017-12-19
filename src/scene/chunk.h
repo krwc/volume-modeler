@@ -17,11 +17,9 @@ struct Chunk {
 
     Buffer vbo;
     size_t num_vertices;
-    compute::buffer cl_vbo;
 
     Buffer ibo;
     size_t num_indices;
-    compute::buffer cl_ibo;
 
     std::mutex mutex;
     glm::ivec3 coord;

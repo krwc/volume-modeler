@@ -71,7 +71,8 @@ Mesher::Mesher(const shared_ptr<ComputeContext> &compute_ctx)
         : m_compute_ctx(compute_ctx)
         , m_edges_scan(compute_ctx->context)
         , m_voxels_scan(compute_ctx->context)
-        , m_mesher_queue(compute_ctx->make_queue()) {
+        , m_vbo(compute_ctx->context, 1)
+        , m_ibo(compute_ctx->context, 1) {
     init_buffers();
     init_kernels();
 }
@@ -116,32 +117,37 @@ compute::event Mesher::enqueue_solve_qef(Chunk &chunk,
             m_voxel_mask, m_scanned_voxels, queue, event);
 }
 
+namespace {
+constexpr inline size_t required_vbo_size(size_t num_active_voxels) {
+    return sizeof(glm::vec3) * num_active_voxels;
+}
+
+constexpr inline size_t required_ibo_size(size_t num_active_edges) {
+    return 6u * sizeof(unsigned) * num_active_edges;
+}
+} // namespace
+
 void Mesher::realloc_vbo_if_necessary(Chunk &chunk, size_t num_voxels) {
-    static const size_t vertex_size = sizeof(glm::vec3);
+    const size_t new_size = required_vbo_size(num_voxels);
 
-    if (chunk.vbo.size() < vertex_size * num_voxels) {
-        chunk.vbo = move(Buffer(BufferDesc{ GL_ARRAY_BUFFER,
-                                            GL_DYNAMIC_DRAW,
-                                            nullptr,
-                                            vertex_size * num_voxels }));
-
-        chunk.cl_vbo = compute::buffer(m_compute_ctx->context,
-                                       vertex_size * num_voxels);
+    if (chunk.vbo.size() < new_size) {
+        chunk.vbo = move(Buffer(BufferDesc{
+                GL_ARRAY_BUFFER, GL_DYNAMIC_DRAW, nullptr, new_size }));
     }
+    if (m_vbo.size() < new_size) {
+        m_vbo = move(compute::buffer(m_compute_ctx->context, new_size));
+   }
 }
 
 void Mesher::realloc_ibo_if_necessary(Chunk &chunk, size_t num_edges) {
-    const size_t num_indices = 6 * num_edges;
+    const size_t new_size = required_ibo_size(num_edges);
 
-    if (chunk.ibo.size() < sizeof(unsigned) * num_indices) {
-        chunk.ibo = move(
-                Buffer(BufferDesc{ GL_ELEMENT_ARRAY_BUFFER,
-                                   GL_DYNAMIC_DRAW,
-                                   nullptr,
-                                   sizeof(unsigned) * num_indices }));
-
-        chunk.cl_ibo = compute::buffer(m_compute_ctx->context,
-                                       sizeof(unsigned) * num_indices);
+    if (chunk.ibo.size() < new_size) {
+        chunk.ibo = move(Buffer(BufferDesc{
+                GL_ELEMENT_ARRAY_BUFFER, GL_DYNAMIC_DRAW, nullptr, new_size }));
+    }
+    if (m_ibo.size() < new_size) {
+        m_ibo = move(compute::buffer(m_compute_ctx->context, new_size));
     }
 }
 
@@ -161,14 +167,14 @@ void Mesher::enqueue_contour(Chunk &chunk,
     realloc_vbo_if_necessary(chunk, num_voxels);
     realloc_ibo_if_necessary(chunk, num_edges);
 
-    m_copy_vertices.set_arg(0, chunk.cl_vbo);
+    m_copy_vertices.set_arg(0, m_vbo);
     m_copy_vertices.set_arg(1, m_voxel_vertices);
     m_copy_vertices.set_arg(2, m_voxel_mask);
     m_copy_vertices.set_arg(3, m_scanned_voxels);
     auto copy_event = enqueue_auto_distributed_nd_range_kernel<1>(
             queue, m_copy_vertices, compute::dim(VOXEL_3D_GRID_SIZE), events);
 
-    m_make_indices.set_arg(0, chunk.cl_ibo);
+    m_make_indices.set_arg(0, m_ibo);
     m_make_indices.set_arg(1, m_edge_mask);
     m_make_indices.set_arg(2, m_scanned_edges);
     m_make_indices.set_arg(3, m_scanned_voxels);
@@ -198,17 +204,18 @@ void Mesher::enqueue_contour(Chunk &chunk,
         }
     };
     MappedBuffer mapped_vbo(chunk.vbo.id(), GL_WRITE_ONLY);
-    MappedBuffer mapped_ibo(chunk.ibo.id(), GL_WRITE_ONLY);
     auto vbo_copy_event =
-            queue.enqueue_read_buffer(chunk.cl_vbo,
+            queue.enqueue_read_buffer(m_vbo,
                                       0,
-                                      chunk.cl_vbo.size(),
+                                      required_vbo_size(num_voxels),
                                       mapped_vbo.raw_ptr,
                                       { copy_event, indices_event });
+
+    MappedBuffer mapped_ibo(chunk.ibo.id(), GL_WRITE_ONLY);
     auto ibo_copy_event =
-            queue.enqueue_read_buffer(chunk.cl_ibo,
+            queue.enqueue_read_buffer(m_ibo,
                                       0,
-                                      chunk.cl_ibo.size(),
+                                      required_ibo_size(num_edges),
                                       mapped_ibo.raw_ptr,
                                       { copy_event, indices_event });
     chunk.num_vertices = num_voxels;

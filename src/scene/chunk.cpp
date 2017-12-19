@@ -27,12 +27,10 @@ Chunk::Chunk(const ivec3 &coord, const compute::context &context, int lod)
                   EDGE_Z_GRID_DIM(AXIS_Y),
                   EDGE_Z_GRID_DIM(AXIS_Z),
                   Scene::edges_format())
-#warning "TODO: this vbo and cl_vbo are rather ugly"
         , vbo()
         , num_vertices(0)
-        , cl_vbo()
         , ibo()
-        , cl_ibo()
+        , num_indices(0)
         , mutex()
         , coord(coord)
         , lod(lod) {
