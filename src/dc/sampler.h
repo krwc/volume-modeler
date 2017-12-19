@@ -11,7 +11,6 @@ class Brush;
 namespace dc {
 
 class Sampler {
-    std::shared_ptr<ComputeContext> m_compute_ctx;
     struct SDFSampler {
         /* Volume sampler */
         compute::kernel sampler;
@@ -37,8 +36,12 @@ public:
      * @param chunk     Chunk to operate on.
      * @param brush     Brush to sample.
      * @param operation Type of the operation to perform.
+     * @param queue     Queue on which sampling shall be executed.
      */
-    void sample(Chunk &chunk, const Brush &brush, Operation operation);
+    compute::wait_list sample(Chunk &chunk,
+                              const Brush &brush,
+                              Operation operation,
+                              compute::command_queue &queue);
 };
 
 } // namespace dc

@@ -76,22 +76,27 @@ Mesher::Mesher(const shared_ptr<ComputeContext> &compute_ctx)
     init_kernels();
 }
 
-void Mesher::enqueue_select_edges(Chunk &chunk) {
+compute::event Mesher::enqueue_select_edges(Chunk &chunk,
+                                            compute::command_queue &queue,
+                                            const compute::wait_list &events) {
     // Mark active edges
     m_select_active_edges.set_arg(0, m_edge_mask);
     m_select_active_edges.set_arg(1, chunk.samples);
 
     auto event = enqueue_auto_distributed_nd_range_kernel<3>(
-            m_mesher_queue,
+            queue,
             m_select_active_edges,
-            compute::dim(VOXEL_GRID_DIM, VOXEL_GRID_DIM, VOXEL_GRID_DIM));
+            compute::dim(VOXEL_GRID_DIM, VOXEL_GRID_DIM, VOXEL_GRID_DIM),
+            events);
 
     // Count them
-    m_edges_scan.inclusive_scan(
-            m_edge_mask, m_scanned_edges, m_mesher_queue, event);
+    return m_edges_scan.inclusive_scan(
+            m_edge_mask, m_scanned_edges, queue, event);
 }
 
-void Mesher::enqueue_solve_qef(Chunk &chunk) {
+compute::event Mesher::enqueue_solve_qef(Chunk &chunk,
+                                         compute::command_queue &queue,
+                                         const compute::wait_list &events) {
     m_solve_qef.set_arg(0, chunk.samples);
     m_solve_qef.set_arg(1, chunk.edges_x);
     m_solve_qef.set_arg(2, chunk.edges_y);
@@ -101,13 +106,14 @@ void Mesher::enqueue_solve_qef(Chunk &chunk) {
     m_solve_qef.set_arg(6, m_voxel_mask);
 
     auto event = enqueue_auto_distributed_nd_range_kernel<3>(
-            m_mesher_queue,
+            queue,
             m_solve_qef,
-            compute::dim(VOXEL_GRID_DIM, VOXEL_GRID_DIM, VOXEL_GRID_DIM));
+            compute::dim(VOXEL_GRID_DIM, VOXEL_GRID_DIM, VOXEL_GRID_DIM),
+            events);
 
     // Count active voxels
-    m_voxels_scan.inclusive_scan(
-            m_voxel_mask, m_scanned_voxels, m_mesher_queue, event);
+    return m_voxels_scan.inclusive_scan(
+            m_voxel_mask, m_scanned_voxels, queue, event);
 }
 
 void Mesher::realloc_vbo_if_necessary(Chunk &chunk, size_t num_voxels) {
@@ -118,13 +124,9 @@ void Mesher::realloc_vbo_if_necessary(Chunk &chunk, size_t num_voxels) {
                                             GL_DYNAMIC_DRAW,
                                             nullptr,
                                             vertex_size * num_voxels }));
-#if defined(WITH_CONTEXT_SHARING)
-        chunk.cl_vbo =
-                compute::opengl_buffer(m_compute_ctx->context, chunk.vbo.id());
-#else
+
         chunk.cl_vbo = compute::buffer(m_compute_ctx->context,
                                        vertex_size * num_voxels);
-#endif // WITH_CONTEXT_SHARING
     }
 }
 
@@ -137,17 +139,18 @@ void Mesher::realloc_ibo_if_necessary(Chunk &chunk, size_t num_edges) {
                                    GL_DYNAMIC_DRAW,
                                    nullptr,
                                    sizeof(unsigned) * num_indices }));
-#if defined(WITH_CONTEXT_SHARING)
-        chunk.cl_ibo =
-                compute::opengl_buffer(m_compute_ctx->context, chunk.ibo.id());
-#else
+
         chunk.cl_ibo = compute::buffer(m_compute_ctx->context,
                                        sizeof(unsigned) * num_indices);
-#endif // WITH_CONTEXT_SHARING
     }
 }
 
-void Mesher::enqueue_contour(Chunk &chunk) {
+void Mesher::enqueue_contour(Chunk &chunk,
+                             compute::command_queue &queue,
+                             const compute::wait_list &events) {
+    // Unfortunately we have to wait for these, because otherwise we won't
+    // be able to access m_scanned_voxels and m_scanned_edges safely.
+    events.wait();
     uint32_t num_voxels = m_scanned_voxels.back();
     uint32_t num_edges = m_scanned_edges.back();
     chunk.num_indices = 6 * num_edges;
@@ -158,41 +161,24 @@ void Mesher::enqueue_contour(Chunk &chunk) {
     realloc_vbo_if_necessary(chunk, num_voxels);
     realloc_ibo_if_necessary(chunk, num_edges);
 
-#if defined(WITH_CONTEXT_SHARING)
-    // Ensure we don't have any race with acquire commands.
-    glFinish();
-
-    const cl_mem buffers[] = {
-        chunk.cl_vbo.get(),
-        chunk.cl_ibo.get()
-    };
-    opengl_enqueue_acquire_gl_objects(2, buffers, m_compute_ctx->queue);
-#endif // WITH_CONTEXT_SHARING
-
     m_copy_vertices.set_arg(0, chunk.cl_vbo);
     m_copy_vertices.set_arg(1, m_voxel_vertices);
     m_copy_vertices.set_arg(2, m_voxel_mask);
     m_copy_vertices.set_arg(3, m_scanned_voxels);
-    enqueue_auto_distributed_nd_range_kernel<1>(m_compute_ctx->queue,
-                                                m_copy_vertices,
-                                                compute::dim(
-                                                        VOXEL_3D_GRID_SIZE));
-
+    auto copy_event = enqueue_auto_distributed_nd_range_kernel<1>(
+            queue, m_copy_vertices, compute::dim(VOXEL_3D_GRID_SIZE), events);
 
     m_make_indices.set_arg(0, chunk.cl_ibo);
     m_make_indices.set_arg(1, m_edge_mask);
     m_make_indices.set_arg(2, m_scanned_edges);
     m_make_indices.set_arg(3, m_scanned_voxels);
     m_make_indices.set_arg(4, chunk.samples);
-    enqueue_auto_distributed_nd_range_kernel<1>(
-            m_compute_ctx->queue,
+    auto indices_event = enqueue_auto_distributed_nd_range_kernel<1>(
+            queue,
             m_make_indices,
-            compute::dim(3 * SAMPLE_3D_GRID_SIZE)).wait();
+            compute::dim(3 * SAMPLE_3D_GRID_SIZE),
+            events);
 
-#if defined(WITH_CONTEXT_SHARING)
-    opengl_enqueue_release_gl_objects(2, buffers, m_compute_ctx->queue);
-#else
-    m_compute_ctx->queue.finish();
     // TODO: Perhaps this belongs to vm::Buffer implementation?
     struct MappedBuffer {
         GLuint id;
@@ -213,24 +199,31 @@ void Mesher::enqueue_contour(Chunk &chunk) {
     };
     MappedBuffer mapped_vbo(chunk.vbo.id(), GL_WRITE_ONLY);
     MappedBuffer mapped_ibo(chunk.ibo.id(), GL_WRITE_ONLY);
-    m_compute_ctx->queue.enqueue_read_buffer(chunk.cl_vbo,
-                                             0,
-                                             chunk.cl_vbo.size(),
-                                             mapped_vbo.raw_ptr);
-    m_compute_ctx->queue.enqueue_read_buffer(chunk.cl_ibo,
-                                             0,
-                                             chunk.cl_ibo.size(),
-                                             mapped_ibo.raw_ptr);
-#endif // WITH_CONTEXT_SHARING
+    auto vbo_copy_event =
+            queue.enqueue_read_buffer(chunk.cl_vbo,
+                                      0,
+                                      chunk.cl_vbo.size(),
+                                      mapped_vbo.raw_ptr,
+                                      { copy_event, indices_event });
+    auto ibo_copy_event =
+            queue.enqueue_read_buffer(chunk.cl_ibo,
+                                      0,
+                                      chunk.cl_ibo.size(),
+                                      mapped_ibo.raw_ptr,
+                                      { copy_event, indices_event });
     chunk.num_vertices = num_voxels;
-    m_compute_ctx->queue.finish();
+    // Again, we MUST wait or otherwise buffer will unmap itself, and we'd
+    // land in the undefined-behavior world.
+    vbo_copy_event.wait();
+    ibo_copy_event.wait();
 }
 
-void Mesher::contour(Chunk &chunk) {
-    enqueue_select_edges(chunk);
-    enqueue_solve_qef(chunk);
-    m_mesher_queue.finish();
-    enqueue_contour(chunk);
+void Mesher::contour(Chunk &chunk,
+                     compute::command_queue &queue,
+                     const compute::wait_list &events) {
+    auto select_edges_event = enqueue_select_edges(chunk, queue, events);
+    auto solve_qef_event = enqueue_solve_qef(chunk, queue);
+    enqueue_contour(chunk, queue, { select_edges_event, solve_qef_event });
 }
 
 } // namespace dc

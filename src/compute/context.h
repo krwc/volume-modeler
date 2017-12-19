@@ -13,7 +13,6 @@
 #include <boost/compute/container/vector.hpp>
 #include <boost/compute/core.hpp>
 #include <boost/compute/image.hpp>
-#include <boost/compute/interop/opengl.hpp>
 #include <boost/compute/utility/dim.hpp>
 #include <memory>
 #include <mutex>
@@ -23,9 +22,6 @@ namespace vm {
 
 class ComputeContext {
     struct MakeSharedEnabler {};
-#if defined(WITH_CONTEXT_SHARING)
-    friend std::shared_ptr<ComputeContext> make_gl_shared_compute_context();
-#endif // WITH_CONTEXT_SHARING
     friend std::shared_ptr<ComputeContext> make_compute_context();
 
 public:
@@ -33,22 +29,14 @@ public:
     compute::command_queue queue;
     std::mutex queue_mutex;
 
-    ComputeContext(MakeSharedEnabler, bool gl_shared);
+    ComputeContext(MakeSharedEnabler);
 
     /** Creates a queue using initialized context and device */
     compute::command_queue make_queue() const;
 };
 
-#if defined(WITH_CONTEXT_SHARING)
-inline std::shared_ptr<ComputeContext> make_gl_shared_compute_context() {
-    return std::make_shared<ComputeContext>(ComputeContext::MakeSharedEnabler{},
-                                            true);
-}
-#endif // WITH_CONTEXT_SHARING
-
 inline std::shared_ptr<ComputeContext> make_compute_context() {
-    return std::make_shared<ComputeContext>(ComputeContext::MakeSharedEnabler{},
-                                            false);
+    return std::make_shared<ComputeContext>(ComputeContext::MakeSharedEnabler{});
 }
 
 } // namespace vm

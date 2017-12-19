@@ -36,18 +36,38 @@ private:
 
     void init_buffers();
     void init_kernels();
-    void enqueue_select_edges(Chunk &chunk);
-    void enqueue_solve_qef(Chunk &chunk);
     void realloc_vbo_if_necessary(Chunk &chunk, size_t num_voxels);
     void realloc_ibo_if_necessary(Chunk &chunk, size_t num_edges);
-    void enqueue_contour(Chunk &chunk);
+
+    compute::event enqueue_select_edges(
+            Chunk &chunk,
+            compute::command_queue &queue,
+            const compute::wait_list &events = compute::wait_list());
+
+    compute::event
+    enqueue_solve_qef(Chunk &chunk,
+                      compute::command_queue &queue,
+                      const compute::wait_list &events = compute::wait_list());
+
+    void
+    enqueue_contour(Chunk &chunk,
+                    compute::command_queue &queue,
+                    const compute::wait_list &events = compute::wait_list());
 
 public:
     Mesher(const std::shared_ptr<ComputeContext> &compute_ctx);
     Mesher(const Mesher &) = delete;
     Mesher &operator=(const Mesher &) = delete;
 
-    void contour(Chunk &chunk);
+    /**
+     * Enqueues contouring on the specified @p queue and waits till it finishes.
+     * @param chunk Chunk to contour.
+     * @param queue Queue to use.
+     * @param events Events to wait for before contouring.
+     */
+    void contour(Chunk &chunk,
+                 compute::command_queue &queue,
+                 const compute::wait_list &events = compute::wait_list());
 };
 
 } // namespace dc

@@ -17,19 +17,11 @@ struct Chunk {
 
     Buffer vbo;
     size_t num_vertices;
-#if defined(WITH_CONTEXT_SHARING)
-    compute::opengl_buffer cl_vbo;
-#else
     compute::buffer cl_vbo;
-#endif // WITH_CONTEXT_SHARING
 
     Buffer ibo;
     size_t num_indices;
-#if defined(WITH_CONTEXT_SHARING)
-    compute::opengl_buffer cl_ibo;
-#else
     compute::buffer cl_ibo;
-#endif // WITH_CONTEXT_SHARING
 
     std::mutex mutex;
     glm::ivec3 coord;

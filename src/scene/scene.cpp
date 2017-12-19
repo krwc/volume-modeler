@@ -36,7 +36,7 @@ void Scene::init_persisted_chunks() {
         auto chunk = make_shared<Chunk>(coord, m_compute_ctx->context);
         m_chunks.emplace(chunk_hash(chunk), chunk);
         m_archive.restore(chunk);
-        m_mesher.contour(*chunk);
+        m_mesher.contour(*chunk, m_compute_ctx->queue);
     }
 }
 
@@ -113,8 +113,10 @@ void Scene::sample(const Brush &brush, dc::Sampler::Operation operation) {
                 {
                     lock_guard<mutex> chunk_lock(chunk->mutex);
                     lock_guard<mutex> queue_lock(m_compute_ctx->queue_mutex);
-                    m_sampler.sample(*chunk, brush, operation);
-                    m_mesher.contour(*chunk);
+                    auto sampler_events = m_sampler.sample(
+                            *chunk, brush, operation, m_compute_ctx->queue);
+                    m_mesher.contour(
+                            *chunk, m_compute_ctx->queue, sampler_events);
                 }
 
                 // Queue this modified chunk to be persisted on the next

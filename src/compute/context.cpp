@@ -5,12 +5,8 @@ using namespace std;
 
 namespace vm {
 
-ComputeContext::ComputeContext(MakeSharedEnabler, bool gl_shared) {
-    if (gl_shared) {
-        context = move(compute::opengl_create_shared_context());
-    } else {
-        context = move(compute::context(compute::system::default_device()));
-    }
+ComputeContext::ComputeContext(MakeSharedEnabler)
+        : context(compute::system::default_device()) {
     queue = move(compute::command_queue(context, context.get_device()));
     LOG(info) << "Initialized OpenCL context";
     LOG(info) << "device      : " << context.get_device().name();

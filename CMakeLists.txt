@@ -23,7 +23,6 @@ set(WORLD_VOXEL_SIZE_METERS 0.1 CACHE STRING "Voxel size in meters (0.1 recommen
 
 option(WITH_TEST "Enables/disables test suite compilation" ON)
 option(WITH_SHARP_FEATURES "Enables/disables QEF solver" OFF)
-option(WITH_CONTEXT_SHARING "Enables/disables use of OpenGL<->OpenCL context sharing" ON)
 
 # Used by the logger module to remove path prefix.
 set(LOGGER_SOURCES_ROOT_DIR ${CMAKE_CURRENT_SOURCE_DIR})

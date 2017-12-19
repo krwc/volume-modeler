@@ -25,9 +25,7 @@ vector<pair<string, Brush::Id>> supported_brushes() {
 }
 } // namespace
 
-Sampler::Sampler(const shared_ptr<ComputeContext> &compute_ctx)
-        : m_compute_ctx(compute_ctx) {
-
+Sampler::Sampler(const shared_ptr<ComputeContext> &compute_ctx) {
     for (const auto &supported_brush : supported_brushes()) {
         auto program = compute::program::create_with_source_file(
                 "media/kernels/samplers.cl", compute_ctx->context);
@@ -40,7 +38,12 @@ Sampler::Sampler(const shared_ptr<ComputeContext> &compute_ctx)
     }
 }
 
-void Sampler::sample(Chunk &chunk, const Brush &brush, Operation operation) {
+compute::wait_list Sampler::sample(Chunk &chunk,
+                                   const Brush &brush,
+                                   Operation operation,
+                                   compute::command_queue &queue) {
+    compute::wait_list events{};
+    events.reserve(4);
     compute::kernel &sampler =
             m_sdf_samplers.at(static_cast<size_t>(brush.id())).sampler;
     const vec3 chunk_origin = Scene::get_chunk_origin(chunk.coord);
@@ -59,10 +62,10 @@ void Sampler::sample(Chunk &chunk, const Brush &brush, Operation operation) {
     compute::kernel &updater =
             m_sdf_samplers.at(static_cast<size_t>(brush.id())).updater;
 
-    enqueue_auto_distributed_nd_range_kernel<3>(
-            m_compute_ctx->queue,
+    events.insert(enqueue_auto_distributed_nd_range_kernel<3>(
+            queue,
             sampler,
-            compute::dim(SAMPLE_GRID_DIM, SAMPLE_GRID_DIM, SAMPLE_GRID_DIM));
+            compute::dim(SAMPLE_GRID_DIM, SAMPLE_GRID_DIM, SAMPLE_GRID_DIM)));
 
     updater.set_arg(2, chunk_origin);
     updater.set_arg(3, brush_origin);
@@ -73,14 +76,13 @@ void Sampler::sample(Chunk &chunk, const Brush &brush, Operation operation) {
     for (int axis = 0; axis < 3; ++axis) {
         updater.set_arg(0, (&chunk.edges_x)[axis]);
         updater.set_arg(1, static_cast<cl_int>(axis));
-        enqueue_auto_distributed_nd_range_kernel<3>(
-                m_compute_ctx->queue,
+        events.insert(enqueue_auto_distributed_nd_range_kernel<3>(
+                queue,
                 updater,
                 compute::dim(
-                        SAMPLE_GRID_DIM, SAMPLE_GRID_DIM, SAMPLE_GRID_DIM));
+                        SAMPLE_GRID_DIM, SAMPLE_GRID_DIM, SAMPLE_GRID_DIM)));
     }
-    m_compute_ctx->queue.flush();
-    m_compute_ctx->queue.finish();
+    return events;
 }
 
 } // namespace dc
