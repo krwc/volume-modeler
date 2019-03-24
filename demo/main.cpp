@@ -7,6 +7,10 @@
 #include <fstream>
 #include <thread>
 
+#ifndef NDEBUG
+#include <fenv.h>
+#endif
+
 #include "gfx/renderer.h"
 #include "compute/context.h"
 
@@ -111,7 +115,7 @@ static void handle_keyboard() {
         accel *= 10;
     }
 
-    vec3 translation;
+    vec3 translation(0,0,0);
     mat3 inv_rotation = inverse(g_camera->get_rotation());
     if (glfwGetKey(g_window, GLFW_KEY_W) == GLFW_PRESS) {
         translation += AXIS_Z;
@@ -266,6 +270,9 @@ int main(int argc, char **argv) {
         LOG(error) << "Usage: " << argv[0] << " [scene-persistence-dir]";
         return 1;
     }
+#ifndef NDEBUG
+    feenableexcept(FE_DIVBYZERO | FE_INVALID | FE_OVERFLOW);
+#endif
     setenv("CUDA_CACHE_DISABLE", "1", 1);
     init();
 

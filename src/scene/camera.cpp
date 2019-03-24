@@ -20,7 +20,7 @@ Camera::Camera(const glm::vec3 &origin,
                float aspect_ratio,
                float near_plane,
                float far_plane)
-    : m_view()
+    : m_view(1.0f)
     , m_proj()
     , m_origin(origin)
     , m_rotx(0.0f)
@@ -38,17 +38,17 @@ void Camera::recalculate_proj() {
 }
 
 void Camera::recalculate_view() {
-    const mat4 T = translate(mat4(), -m_origin);
+    const mat4 T = translate(mat4(1.0f), -m_origin);
     const mat4 R = mat4_cast(get_quat_rotation_x() * get_quat_rotation_y());
     m_view = R * T;
 }
 
 quat Camera::get_quat_rotation_x() const {
-    return rotate(quat(), m_rotx, CAMERA_X);
+    return angleAxis(m_rotx, CAMERA_X);
 }
 
 quat Camera::get_quat_rotation_y() const {
-    return rotate(quat(), m_roty, CAMERA_Y);
+    return angleAxis(m_roty, CAMERA_Y);
 }
 
 void Camera::set_aspect_ratio(float aspect_ratio) {

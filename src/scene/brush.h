@@ -48,12 +48,9 @@ public:
 
     /** @brief sets the rotation (in radians) in each dimension (xyz) */
     inline void set_rotation(const glm::vec3 &rotation) {
-        const glm::quat rotx =
-                glm::rotate(glm::quat(), rotation.x, { 1.0f, 0.0f, 0.0f });
-        const glm::quat roty =
-                glm::rotate(glm::quat(), rotation.y, { 0.0f, 1.0f, 0.0f });
-        const glm::quat rotz =
-                glm::rotate(glm::quat(), rotation.z, { 0.0f, 0.0f, 1.0f });
+        const glm::quat rotx = glm::angleAxis(rotation.x, glm::vec3{ 1.0f, 0.0f, 0.0f });
+        const glm::quat roty = glm::angleAxis(rotation.y, glm::vec3{ 0.0f, 1.0f, 0.0f });
+        const glm::quat rotz = glm::angleAxis(rotation.z, glm::vec3{ 0.0f, 0.0f, 1.0f });
         m_rotation = mat3_cast(rotx * roty * rotz);
     }
 
