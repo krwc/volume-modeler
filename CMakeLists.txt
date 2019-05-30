@@ -55,12 +55,13 @@ configure_file(${CMAKE_CURRENT_SOURCE_DIR}/config/config.h.in
                ${CMAKE_CURRENT_BINARY_DIR}/config/config.h)
 include_directories(${CMAKE_CURRENT_BINARY_DIR}/config)
 
-if(WITH_TEST)
-    add_subdirectory(test)
-endif()
 
 # Force use of OpenCL 1.2 at most. Not doing so may result in compile time errors.
 set(BOOST_COMPUTE_MAX_CL_VERSION 102)
+
+if(WITH_TEST)
+    add_subdirectory(test)
+endif()
 
 add_library(${PROJECT_NAME}_object OBJECT ${CPP_SOURCES})
 add_definitions(-D BOOST_COMPUTE_MAX_CL_VERSION=${BOOST_COMPUTE_MAX_CL_VERSION}
